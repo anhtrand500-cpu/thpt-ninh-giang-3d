@@ -22,8 +22,8 @@ function wsURL() {
   return `${proto}//${location.host}/api/ws`;
 }
 
-const POSE_TO_CODE = { sit: 1, lie: 2, dance: 3, salute: 4, bike: 5, bikePassenger: 6 };
-const POSE_FROM_CODE = [null, 'sit', 'lie', 'dance', 'salute', 'bike', 'bikePassenger'];
+const POSE_TO_CODE = { sit: 1, lie: 2, dance: 3, bike: 4, bikePassenger: 5 };
+const POSE_FROM_CODE = [null, 'sit', 'lie', 'dance', 'bike', 'bikePassenger'];
 const POSE_VISUAL_DROP = { sit: 0.54, lie: 0.2 };
 
 function packPos(pl) {
@@ -441,7 +441,8 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
         }
       }
       if (r.clapT > 0) r.clapT = Math.max(0, r.clapT - dt);
-      const rPose = r.clapT > 0 ? 'clap' : (r.pose === 'bikePassenger' ? 'bike' : r.pose);
+      if (r.heartT > 0) r.heartT = Math.max(0, r.heartT - dt);
+      const rPose = r.heartT > 0 ? 'heart' : r.clapT > 0 ? 'clap' : (r.pose === 'bikePassenger' ? 'bike' : r.pose);
       const animSpeed = rPose === 'dance' ? 2.2 : rPose === 'clap' ? 1.1 : r.speed;
       const airborne = !rPose && r.feetY - gY > 0.12;
       r.char.update(dt, animSpeed, airborne, 0, rPose);

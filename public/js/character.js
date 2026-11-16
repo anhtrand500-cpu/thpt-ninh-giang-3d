@@ -177,15 +177,13 @@ export function createCharacter(o = {}) {
     arms[1].rotation.z = -0.25;
   }
 
-  function poseSalute() {
-    body.rotation.set(0, 0, 0);
+  function poseHeart() {
+    body.rotation.set(-0.02, 0, 0);
     body.position.y = 0;
     legs[0].rotation.set(0, 0, 0);
     legs[1].rotation.set(0, 0, 0);
     arms[0].rotation.set(0, 0, 0.06);
-    arms[1].rotation.set(-2.05, 0, 0.15);
-    arms[0].position.z = 0;
-    arms[1].position.z = 0;
+    arms[1].rotation.set(-2.2, 0, -0.35);
     flaps[0] && (flaps[0].rotation.x = 0);
     flaps[1] && (flaps[1].rotation.x = 0);
   }
@@ -262,7 +260,7 @@ export function createCharacter(o = {}) {
   function update(dt, speed, airborne, vy = 0, pose = null) {
     if (pose === 'sit') { poseSit(); return; }
     if (pose === 'lie') { poseLie(); return; }
-    if (pose === 'salute') { poseSalute(); return; }
+    if (pose === 'heart') { poseHeart(); return; }
     if (pose === 'clap') { poseClap(dt); return; }
     if (pose === 'bike') { poseBike(dt, speed); return; }
     if (pose === 'sing') { poseSing(dt, speed); return; }

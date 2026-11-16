@@ -10,6 +10,7 @@ import { toggleClassroomDoor } from './classroom.js';
 import { mountBike, dismountBike, syncBikeVisual, detachBikeRider } from './bike.js';
 import { createEnvironment } from './environment.js';
 import { createFireworks } from './fireworks.js';
+import { createHearts } from './hearts.js';
 import {
   tickSoccer, tickFlagCeremony, openGallery, closeGallery,
 } from './yardPlay.js';
@@ -95,6 +96,7 @@ scene.add(sun, sun.target);
 // ---------- world ----------
 const world = buildWorld(scene);
 const fireworks = createFireworks(scene);
+const hearts = createHearts(scene);
 const environment = createEnvironment({
   scene, camera, sky, clouds, cloudMaterial, hemisphere, sun, renderer, status: $('weatherStatus'), lamps: world.lamps,
 });
@@ -114,7 +116,7 @@ const player = {
   vel: new THREE.Vector3(),
   feetY: 0, vy: 0, grounded: true, facing: Math.PI,
   char: null,
-  pose: null, // 'sit' | 'lie' | 'dance' | 'salute'
+  pose: null, // 'sit' | 'lie' | 'dance'
   onBike: false,
   bike: null,
   passengerOf: null,
@@ -122,10 +124,11 @@ const player = {
 };
 let pendingBikeDriverId = null;
 let pendingBikeSeatTimer = 0;
-const POSE_LABEL = { sit: 'Ngồi', lie: 'Nằm', dance: 'Nhảy múa', salute: 'Chào cờ' };
-const POSE_CYCLE = ['sit', 'lie', 'dance', 'salute'];
+const POSE_LABEL = { sit: 'Ngồi', lie: 'Nằm', dance: 'Nhảy múa' };
+const POSE_CYCLE = ['sit', 'lie', 'dance'];
 const POSE_VISUAL_DROP = { sit: 0.54, lie: 0.2 };
 let playerClapT = 0;
+let playerHeartT = 0;
 let lastClapAt = 0;
 
 function toggleBikeAtShed() {
@@ -269,7 +272,26 @@ const NPC_DEFS = [
     greet: 'Ăn vặt gì không cháu? Kẹo que còn nhiều.' },
   { name: 'Thầy chủ nhiệm', kind: 'boy', shirt: 0x9fc3e6, pants: 0x4a4a4a, x: -13, z: -19, static: true, teacher: true, face: 0.6, lines: ['Chào em! Nhớ học bài cũ trước khi vào lớp nhé.', 'Trường mình thành lập từ tháng 9 năm 1961 đấy, đã hơn 65 năm rồi.'] },
 ];
-const npcs = NPC_DEFS.map(d => {
+const fieldPlayers = Array.from({ length: 12 }, (_, i) => {
+  const sx = i % 2 === 0 ? -1 : 1;
+  const kind = i % 3 === 0 ? 'girl' : 'boy';
+  const angle = (i / 12) * Math.PI * 2 + Math.random() * 0.35;
+  const x = -125 + Math.cos(angle) * (12 + (i % 4) * 3.5);
+  const z = -45 + Math.sin(angle) * (10 + (i % 3) * 4.5);
+  return {
+    name: `Bạn đá bóng ${i + 1}`,
+    kind,
+    x,
+    z,
+    bag: null,
+    fieldPlayer: true,
+    static: false,
+    face: Math.random() * 6,
+    lines: ['Mỗi ngày mình ra sân tập đá khoảng 20–30 phút.', 'Sân cỏ này rộng quá, thích hợp cho nhiều bạn cùng đá cùng lúc.'],
+    greet: 'Nào, cùng đá một trận thôi!',
+  };
+});
+const npcs = [...NPC_DEFS, ...fieldPlayers].map(d => {
   const char = createCharacter({ kind: d.kind, bag: d.bag ?? null, shirt: d.shirt, pants: d.pants, armband: d.armband, cap: d.cap, badge: d.teacher || d.staff ? false : undefined });
   scene.add(char.root);
   return { ...d, char, pos: new THREE.Vector3(d.x, 0, d.z), feetY: 0, facing: d.face ?? Math.random() * 6, target: null, wait: Math.random() * 3, stuck: 0, talkT: 0, lineIdx: 0, bellT: 0 };
@@ -278,6 +300,11 @@ const npcs = NPC_DEFS.map(d => {
 const onStage = v => v.x > -12 && v.x < 12 && v.z > -27 && v.z < -17.5;
 
 function pickTarget(n) {
+  if (n.fieldPlayer) {
+    const x = -125 + (Math.random() - 0.5) * 52;
+    const z = -45 + (Math.random() - 0.5) * 34;
+    return new THREE.Vector3(x, 0, z);
+  }
   if (n.gatePatrol) {
     const { homeX0, homeX1, homeZ0, homeZ1 } = n;
     return new THREE.Vector3(
@@ -347,12 +374,19 @@ addEventListener('keydown', e => {
     e.preventDefault();
     return;
   }
+  if (e.code === 'Digit5' && !e.repeat) {
+    playerHeartT = 1.1;
+    const rightX = Math.cos(player.facing), rightZ = -Math.sin(player.facing);
+    hearts.pop(player.pos.x + rightX * 0.48, player.feetY + 1.85, player.pos.z + rightZ * 0.48);
+    mp.act('heart');
+    e.preventDefault();
+    return;
+  }
   if (e.code === 'Space') { queueJump(); e.preventDefault(); return; }
   if (e.code === 'Digit1' && !e.repeat) { setPlayerPose('sit'); e.preventDefault(); return; }
   if (e.code === 'Digit2' && !e.repeat) { setPlayerPose('lie'); e.preventDefault(); return; }
   if (e.code === 'Digit3' && !e.repeat) { setPlayerPose('dance'); e.preventDefault(); return; }
   if ((e.code === 'Digit4' || e.code === 'KeyV') && !e.repeat) { triggerClap(); e.preventDefault(); return; }
-  if (e.code === 'Digit5' && !e.repeat) { setPlayerPose('salute'); e.preventDefault(); return; }
   if (e.code === 'KeyB' && !e.repeat) { dismountBikeAnywhere(); e.preventDefault(); return; }
   if (e.code === 'Digit0' && !e.repeat) { clearPlayerPose(); e.preventDefault(); return; }
   keys.add(e.code);
@@ -622,6 +656,12 @@ const mp = createMultiplayer({
       const r = mp.remotes.get(m.id);
       if (m.kind === 'fireworks') {
         fireworks.launch();
+        return;
+      }
+      if (m.kind === 'heart' && r?.seeded) {
+        r.heartT = 1.1;
+        const rightX = Math.cos(r.facing), rightZ = -Math.sin(r.facing);
+        hearts.pop(r.pos.x + rightX * 0.48, r.feetY + 1.85, r.pos.z + rightZ * 0.48);
         return;
       }
       if (m.kind === 'clap' && r) {
@@ -1365,7 +1405,8 @@ function updatePlayer(dt) {
   }
   const airborne = !player.onBike && !player.pose && player.feetY - g > 0.08;
   if (playerClapT > 0) playerClapT = Math.max(0, playerClapT - dt);
-  const animPose = playerClapT > 0 ? 'clap' : (player.onBike ? 'bike' : player.pose);
+  if (playerHeartT > 0) playerHeartT = Math.max(0, playerHeartT - dt);
+  const animPose = playerHeartT > 0 ? 'heart' : playerClapT > 0 ? 'clap' : (player.onBike ? 'bike' : player.pose);
   const animSpeed = animPose === 'dance' ? 2.2 : animPose === 'clap' ? 1.1 : animPose === 'bike' ? Math.max(moved, 0.35) : moved;
   player.char.update(dt, animSpeed, airborne && !animPose, player.vy, animPose);
 }
@@ -1515,6 +1556,7 @@ function frame() {
   const localHour = environment.getLocalHour();
   for (const u of world.updaters) u(t, localHour);
   fireworks.update(t);
+  hearts.update(dt);
   const shot = SHOTS[params.get('shot')] || CAM;
   if (shot) {
     camera.position.set(...shot[0]);

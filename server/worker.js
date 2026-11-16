@@ -4,7 +4,7 @@
 //   Dùng WebSocket Hibernation API để không tốn thời gian chạy khi mọi người đứng yên.
 import { DurableObject } from 'cloudflare:workers';
 
-const MAX_PLAYERS = 200; // Workers Paid — giới hạn phòng san-truong (giảm tải)
+const MAX_PLAYERS = 150; // Workers Paid — giới hạn phòng san-truong (giảm tải)
 const STALE_MS = 45 * 60_000; // đứng yên / tab nền — không quét đá khỏi phòng (chấp nhận lag hơn là disconnect)
 const GHOST_MS = 8 * 60_000;  // socket chưa hello xong quá lâu → dọn
 const SWEEP_MS = 5 * 60_000;  // quét nhẹ, tránh giật khi đông người
@@ -534,7 +534,7 @@ export class SchoolRoom extends DurableObject {
         break;
       }
       case 'act': {
-        if (!s.profile || !['keng', 'drum', 'fireworks'].includes(m.kind)) return;
+        if (!s.profile || !['keng', 'drum', 'fireworks', 'heart'].includes(m.kind)) return;
         const cooldownField = m.kind === 'fireworks' ? 'fireworksAt' : 'actAt';
         if (now - (s[cooldownField] || 0) < ACT_COOLDOWN_MS) return;
         s[cooldownField] = now;

@@ -686,9 +686,10 @@ export function buildWorld(scene) {
     [...seq('11B', 10, 12), 'Phòng TN Vật lí', 'Phòng TN Hóa học', 'Phòng TN Sinh học'],
     [...seq('10C', 10, 12), 'Phòng Ngoại ngữ', 'Phòng Đa năng', 'Phòng Đoàn TN'],
   ] });
-  buildBlock({ x: 55, z: -8, ry: -Math.PI / 2, L: 48, D: 9, floors: 2, rooms: [
+  buildBlock({ x: 55, z: -8, ry: -Math.PI / 2, L: 48, D: 9, floors: 3, rooms: [
     ['Phòng Hiệu trưởng', 'Phòng Phó HT', 'Văn phòng', 'Phòng Hội đồng', 'Phòng Kế toán', 'Phòng Y tế'],
     ['Tổ Toán', 'Tổ Ngữ văn', 'Tổ Ngoại ngữ', 'Tổ Lý – Tin', 'Tổ Hóa – Sinh', 'Tổ Sử – Địa'],
+    ['Phòng Bộ môn 7', 'Phòng Bộ môn 8', 'Phòng Công nghệ', 'Phòng Tin học', 'Phòng Thiết kế', 'Phòng Tổ chức'],
   ] });
   // Hai dãy nhà 2 tầng được chuyển về vị trí cũ của Nhà học chính.
   const frontRooms = { [-1]: [['Phòng Truyền thống', 'Phòng Công đoàn', 'Phòng Thiết bị'], ['Phòng Bộ môn 1', 'Phòng Bộ môn 2', 'Phòng Bộ môn 3']],
@@ -1268,13 +1269,7 @@ export function buildWorld(scene) {
     flameTree(x, z, s);
   }
   // Vài cây bồn giữa sân (ảnh lễ 2026 — rải thưa, sân vẫn rộng trống)
-  for (const [x, z, t, s] of [
-    [-13, -7, 'round', 0.9],
-    [11, -6, 'flame', 0.95],
-    [14, -11, 'round', 0.85],
-    [-7, 5, 'flame', 0.88],
-    [15, 4, 'round', 0.88],
-  ]) placeYardTree(x, z, t, s);
+  // Bỏ các cây chồng lên khối nhà học chính; giữ không gian trước sảnh và hành lang rộng hơn.
   for (const [x, z] of [[-68, -10], [-68, 10], [-68, 26], [68, -12], [68, 8], [68, 24], [-30, -50], [-10, -51], [12, -50], [32, -51]]) roundTree(x, z, 1.1);
   // Vườn cây bên trái sân trong: cây cổ thụ (dưới gốc treo kẻng), bồn cây viền gạch, ghế đá, cau (theo ảnh 2022).
   {
@@ -1528,28 +1523,30 @@ export function buildWorld(scene) {
       for (const dx of [-1.3, 1.3]) for (const dz of [-0.85, 0.85]) batch.add(mats.dark, new THREE.CylinderGeometry(0.33, 0.33, 0.22, 12).rotateX(Math.PI / 2), xform(x + dx, 0.33, 41.3 + dz));
     }
 
-    // --- quán Tuấn Thảo: góc phía Tây, cạnh giàn hoa giấy tím; nhà vàng mái ngói cũ phía sau ---
+    // --- quán Tuấn Thảo: góc phía Tây, 2 tầng, cạnh giàn hoa giấy tím ---
     {
       const bx = -67, front = 54.5;
-      box(M(0xe8b49a), WORLD, 11, 10.2, 12, bx, 0, front + 6, { collide: true });
-      box(M(0xc9573e, { metalness: 0.3 }), WORLD, 8, 3, 9, bx + 1, 10.2, front + 7);
-      batch.add(M(0xb23a2a, { metalness: 0.3 }), GEO.cbox, xform(bx + 1, 13.4, front + 7, 0, 0, 0.12).multiply(new THREE.Matrix4().makeScale(8.6, 0.12, 9.6)));
-      for (let f = 1; f < 3; f++) {
-        box(M(0x3d4b55), WORLD, 7, 1.6, 0.1, bx, f * 3.4 + 0.9, front - 0.04);
-        box(M(0xf4efe6), WORLD, 9, 0.9, 0.5, bx, f * 3.4 + 0.2, front - 0.25);
+      const baseW = 11, baseD = 11.5, baseH = 6.6;
+      box(M(0xf0d3b1), WORLD, baseW, baseH, baseD, bx, 0, front + 6.2, { collide: true });
+      box(M(0xf7ead8), WORLD, baseW - 1.2, 0.9, baseD - 1.2, bx, baseH - 0.4, front + 6.2);
+      box(M(0xb65a47), WORLD, baseW - 2.2, 1.8, 0.28, bx, 2.8, front + 6.2 + baseD / 2 - 0.18);
+      box(M(0x8c4f3c), WORLD, baseW - 2.4, 0.18, 0.18, bx, 4.2, front + 6.2 + baseD / 2 - 0.16);
+      for (const dx of [-2.4, 0, 2.4]) {
+        box(M(0xa6b4ff), WORLD, 1.3, 2.3, 0.16, bx + dx, 2.1, front + 6.2 + baseD / 2 - 0.24);
+        box(M(0xf5f5f5), WORLD, 1.0, 1.2, 0.08, bx + dx, 2.1, front + 6.2 + baseD / 2 - 0.12);
       }
-      box(M(0x8f9396), WORLD, 8, 2.8, 0.1, bx, 0, front - 0.04);
-      sign(T.signTexture([{ text: 'BIA HƠI', size: 46 }, { text: 'TUẤN THẢO', size: 92 }], { w: 1400, h: 300, bg: '#efe7da', fg: '#b3261e', border: '#3d4b55' }), 9.5, 1.6, bx, 3.35, front - 0.35, Math.PI);
-      // giàn hoa giấy tím
+      const roofW = baseW + 0.9, roofD = baseD + 1.0;
+      batch.add(mats.tileRoof, GEO.pyramid, xform(bx, baseH + 0.18, front + 6.2).multiply(new THREE.Matrix4().makeScale(roofW * 0.58, 2.2, roofD * 0.58)));
+      for (let f = 0; f < 2; f++) {
+        box(M(0x3d4b55), WORLD, 7.8, 0.12, 0.12, bx, (f + 1) * 2.8 + 0.3, front + 6.2 - baseD / 2 + 0.2);
+      }
+      sign(T.signTexture([{ text: 'BIA HƠI', size: 42 }, { text: 'TUẤN THẢO', size: 82 }], { w: 1400, h: 260, bg: '#efe7da', fg: '#b3261e', border: '#3d4b55' }), 9.4, 1.4, bx, 3.1, front + 6.2 - baseD / 2 + 0.38, Math.PI);
       const purple = M(0x9b3fb0, { flatShading: true }), purple2 = M(0xc25bd0, { flatShading: true });
       for (let k = 0; k < 10; k++) blob(k % 2 ? purple : purple2, WORLD, -60 + Math.cos(k) * 1.5, 2.2 + (k % 4) * 0.9, 57 + k * 0.7, 1.4, 1.0, 1.2);
-      // nhà vàng 2 tầng mái ngói đỏ
-      box(M(0xe8c66a), WORLD, 9, 6.6, 8, -66, 0, 74, { collide: true });
-      batch.add(mats.tileRoof, GEO.pyramid, xform(-66, 6.6, 74).multiply(new THREE.Matrix4().makeScale(7, 2.2, 6.2)));
       W.interact.push({
         x: bx + 4, z: 51.5, r: 5, label: 'Xem quán Tuấn Thảo',
         title: 'Quán bia Tuấn Thảo',
-        text: 'Ngôi nhà 4 tầng ở góc đầu sân bóng phía Tây, đối diện trường bên kia đường Nguyễn Bỉnh Khiêm, cạnh giàn hoa giấy tím.',
+        text: 'Quán bia 2 tầng ở góc đầu sân bóng phía Tây, đối diện trường bên kia đường Nguyễn Bỉnh Khiêm, cạnh giàn hoa giấy tím.',
       });
     }
     W.rects.push({ minX: FIELD_X - pitchWidth / 2, maxX: FIELD_X + pitchWidth / 2, minZ: FIELD_Z - pitchLength / 2, maxZ: FIELD_Z + pitchLength / 2, kind: 'field' });
