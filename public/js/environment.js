@@ -120,6 +120,7 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
     timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit',
   });
 
+  const FORCE_DAYLIGHT_SCENE = true;
   const now = Date.now();
   const fallbackHour = localClock(now, 7 * 3600).hour;
   const state = {
@@ -215,7 +216,8 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   function update(dt, elapsed, targetX, targetZ) {
     const epoch = Date.now();
     const solar = solarDirection(epoch, state.offsetSeconds);
-    const daylight = state.isDay ? clamp((solar.y + 0.03) / 0.48, 0, 1) : 0;
+    const daylightNatural = state.isDay ? clamp((solar.y + 0.03) / 0.48, 0, 1) : 0;
+    const daylight = FORCE_DAYLIGHT_SCENE ? 1 : daylightNatural;
     const cloud = state.cloudCover / 100;
     const mode = precipitationType(state.weatherCode);
     const dimming = (1 - cloud * 0.55) * (mode === 'rain' ? 0.78 : 1);
@@ -244,10 +246,10 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
       Math.max(0.08, solar.y) * 80,
       targetZ + solar.z * 80,
     );
-    const lampLevel = clamp((0.38 - daylight) / 0.38, 0, 1);
+    const lampLevel = FORCE_DAYLIGHT_SCENE ? 0 : clamp((0.38 - daylight) / 0.38, 0, 1);
     for (const lamp of lamps) lamp.light.intensity = lamp.maxIntensity * lampLevel;
     for (const material of lampMaterials) material.emissiveIntensity = 0.02 + lampLevel * 0.95;
-    renderer.toneMappingExposure = 0.72 + 0.28 * daylight;
+    renderer.toneMappingExposure = FORCE_DAYLIGHT_SCENE ? 1.0 : 0.72 + 0.28 * daylight;
 
     cloudColor.copy(clearCloud).lerp(stormCloud, Math.max(cloud * 0.8, mode === 'rain' ? 0.75 : 0));
     cloudMaterial.color.copy(nightCloud).lerp(cloudColor, daylight);
@@ -258,7 +260,7 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
     clouds.rotation.y = elapsed * 0.004;
     sky.position.copy(camera.position);
 
-    stars.visible = !state.isDay && cloud < 0.68 && !foggy;
+    stars.visible = !FORCE_DAYLIGHT_SCENE && !state.isDay && cloud < 0.68 && !foggy;
     stars.position.copy(camera.position);
     starMaterial.opacity = 0.85 * (1 - cloud);
 
