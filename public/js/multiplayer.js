@@ -43,7 +43,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
   const remotes = new Map();
   const notes = [];
   // lớp đang tham gia: lấy từ link mời ?lop=MÃ, nếu không thì lớp đã vào lần trước
-  const CLASS_KEY = 'vinhbao-class';
+  const CLASS_KEY = 'ninhgiang-class';
   let classCode = (new URLSearchParams(location.search).get('lop') || localStorage.getItem(CLASS_KEY) || '').toUpperCase() || null;
   let classInfo = null;
   let classJoinAuto = false;

@@ -10,7 +10,26 @@ function makeCanvas(w, h) {
   return [c, c.getContext('2d')];
 }
 
+let grainSequence = 1;
+
 function toTexture(c, repeat = false) {
+  const [grain, g] = makeCanvas(64, 64);
+  const r = seeded(c.width * 31 + c.height * 17 + grainSequence++);
+  for (let i = 0; i < 180; i++) {
+    const light = r() > 0.48;
+    g.fillStyle = light
+      ? `rgba(255,255,255,${0.025 + r() * 0.045})`
+      : `rgba(25,20,16,${0.025 + r() * 0.045})`;
+    const size = r() > 0.9 ? 2 : 1;
+    g.fillRect(Math.floor(r() * 64), Math.floor(r() * 64), size, size);
+  }
+  const ctx = c.getContext('2d');
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = ctx.createPattern(grain, 'repeat');
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.restore();
+
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
@@ -178,37 +197,46 @@ export function balustradeTexture() {
   return t;
 }
 
-// Ô tường rào: nền đỏ sẫm, hoa văn tròn màu vàng (theo ảnh cổng trường).
+// Song sắt đen hoa văn, nền trong suốt để giữ khoảng thoáng giữa các thanh.
 export function fencePanelTexture() {
   const [c, x] = makeCanvas(256, 160);
-  x.fillStyle = '#f3cf55';
-  x.fillRect(0, 0, 256, 160);
-  x.fillStyle = '#8e2a22';
-  x.fillRect(8, 8, 240, 144);
-  x.strokeStyle = 'rgba(0,0,0,0.12)';
-  x.lineWidth = 1;
-  for (let y = 20; y < 150; y += 14) {
+  x.clearRect(0, 0, 256, 160);
+  x.fillStyle = '#252927';
+  x.fillRect(0, 12, 256, 8);
+  x.fillRect(0, 68, 256, 7);
+  x.fillRect(0, 139, 256, 8);
+  x.fillStyle = '#555b57';
+  x.fillRect(0, 12, 256, 2);
+  x.fillRect(0, 68, 256, 2);
+  x.fillRect(0, 139, 256, 2);
+  for (let px = 8; px <= 248; px += 16) {
+    x.fillStyle = '#252927';
+    x.fillRect(px - 2, 22, 4, 116);
+    x.fillStyle = '#555b57';
+    x.fillRect(px - 1, 23, 1, 114);
     x.beginPath();
-    x.moveTo(8, y);
-    x.lineTo(248, y);
+    x.moveTo(px - 5, 23);
+    x.lineTo(px, 5);
+    x.lineTo(px + 5, 23);
+    x.closePath();
+    x.fillStyle = '#252927';
+    x.fill();
+  }
+  x.strokeStyle = '#252927';
+  x.lineWidth = 4;
+  for (const cx of [48, 128, 208]) {
+    x.beginPath();
+    x.arc(cx, 99, 16, Math.PI, 0);
+    x.stroke();
+    x.beginPath();
+    x.arc(cx, 99, 16, 0, Math.PI);
     x.stroke();
   }
-  const cx = 128, cy = 80;
-  x.fillStyle = '#f3cf55';
-  x.beginPath();
-  x.arc(cx, cy, 52, 0, Math.PI * 2);
-  x.fill();
-  x.strokeStyle = '#8e2a22';
-  x.lineWidth = 5;
-  for (const r of [40, 28, 16]) {
-    x.beginPath();
-    x.arc(cx, cy, r, 0, Math.PI * 2);
-    x.stroke();
+  x.fillStyle = '#252927';
+  for (const px of [48, 128, 208]) {
+    x.fillRect(px - 2, 83, 4, 32);
+    x.fillRect(px - 16, 97, 32, 4);
   }
-  x.fillStyle = '#8e2a22';
-  x.beginPath();
-  x.arc(cx, cy, 5, 0, Math.PI * 2);
-  x.fill();
   return toTexture(c);
 }
 
@@ -298,8 +326,8 @@ export function ceremonyBackdropTexture() {
   x.fillStyle = '#1d3f8f';
   fitFont(x, 'SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI PHÒNG', 900, 40);
   x.fillText('SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI PHÒNG', 960, 60);
-  fitFont(x, 'TRƯỜNG THPT VĨNH BẢO', 900, 46);
-  x.fillText('TRƯỜNG THPT VĨNH BẢO', 960, 112);
+  fitFont(x, 'TRƯỜNG THPT NINH GIANG', 900, 46);
+  x.fillText('TRƯỜNG THPT NINH GIANG', 960, 112);
   x.fillStyle = '#d62a1e';
   x.font = 'bold 128px Georgia, "Times New Roman", serif';
   fitFont(x, 'LỄ KHAI GIẢNG', 1050, 130);
@@ -307,8 +335,8 @@ export function ceremonyBackdropTexture() {
   x.fillStyle = '#1d3f8f';
   fitFont(x, 'NĂM HỌC MỚI', 800, 64);
   x.fillText('NĂM HỌC MỚI', 960, 335);
-  fitFont(x, 'Vĩnh Bảo – Hải Phòng', 600, 34, 'italic');
-  x.fillText('Vĩnh Bảo – Hải Phòng', 960, 400);
+  fitFont(x, 'Ninh Giang – Hải Phòng', 600, 34, 'italic');
+  x.fillText('Ninh Giang – Hải Phòng', 960, 400);
   return toTexture(c);
 }
 
@@ -461,8 +489,8 @@ export function ledStagePanelTexture() {
   for (let j = 0; j < 640; j += 8) { x.beginPath(); x.moveTo(0, j); x.lineTo(512, j); x.stroke(); }
   x.fillStyle = 'rgba(255,255,255,0.92)';
   x.textAlign = 'center';
-  fitFont(x, 'THPT VĨNH BẢO', 460, 52);
-  x.fillText('THPT VĨNH BẢO', 256, 300);
+  fitFont(x, 'THPT NINH GIANG', 460, 52);
+  x.fillText('THPT NINH GIANG', 256, 300);
   return toTexture(c);
 }
 
@@ -531,6 +559,238 @@ export function roundWindowTexture() {
     x.stroke();
   }
   return toTexture(c);
+}
+
+export function schoolGateTexture() {
+  const [c, x] = makeCanvas(2048, 760);
+  const cream = '#f2eee4';
+
+  x.fillStyle = 'rgba(25, 28, 29, 0.48)';
+  x.fillRect(28, 215, 1992, 28);
+  x.save();
+  x.beginPath();
+  x.moveTo(32, 215);
+  x.lineTo(170, 96);
+  x.lineTo(1878, 96);
+  x.lineTo(2016, 215);
+  x.closePath();
+  x.clip();
+  const roof = x.createLinearGradient(0, 96, 0, 215);
+  roof.addColorStop(0, '#9d4b37');
+  roof.addColorStop(1, '#713328');
+  x.fillStyle = roof;
+  x.fillRect(0, 90, 2048, 140);
+  for (let y = 104, row = 0; y < 220; y += 14, row++) {
+    x.strokeStyle = row % 2 ? 'rgba(255, 190, 151, 0.48)' : 'rgba(69, 34, 26, 0.5)';
+    x.lineWidth = 2;
+    x.beginPath();
+    x.moveTo(0, y);
+    x.lineTo(2048, y);
+    x.stroke();
+    x.strokeStyle = 'rgba(82, 39, 29, 0.58)';
+    x.lineWidth = 1.5;
+    const offset = row % 2 ? 0 : 20;
+    for (let tx = offset; tx < 2048; tx += 40) {
+      x.beginPath();
+      x.moveTo(tx, y);
+      x.lineTo(tx + 18, y + 14);
+      x.stroke();
+    }
+  }
+  x.restore();
+  x.strokeStyle = '#66372d';
+  x.lineWidth = 8;
+  x.beginPath();
+  x.moveTo(32, 215);
+  x.lineTo(170, 96);
+  x.lineTo(1878, 96);
+  x.lineTo(2016, 215);
+  x.stroke();
+
+  const eave = x.createLinearGradient(0, 216, 0, 253);
+  eave.addColorStop(0, '#ffffff');
+  eave.addColorStop(0.65, '#e8e4da');
+  eave.addColorStop(1, '#777a78');
+  x.fillStyle = eave;
+  x.fillRect(34, 216, 1980, 37);
+  x.fillStyle = '#a9aaa5';
+  x.fillRect(34, 248, 1980, 8);
+
+  const column = (left, right) => {
+    const g = x.createLinearGradient(left, 0, right, 0);
+    g.addColorStop(0, '#aaa9a1');
+    g.addColorStop(0.18, '#faf8ef');
+    g.addColorStop(0.82, '#f2efe6');
+    g.addColorStop(1, '#aaa9a1');
+    x.fillStyle = g;
+    x.fillRect(left, 250, right - left, 510);
+    x.fillStyle = '#d1cec4';
+    x.fillRect(left - 10, 250, right - left + 20, 20);
+    x.fillRect(left - 10, 738, right - left + 20, 22);
+  };
+  column(48, 180);
+  column(1868, 2000);
+  column(470, 532);
+  column(1516, 1578);
+
+  const brickPanel = (left, right) => {
+    const g = x.createLinearGradient(0, 270, 0, 440);
+    g.addColorStop(0, '#75382b');
+    g.addColorStop(1, '#4d3028');
+    x.fillStyle = g;
+    x.fillRect(left, 270, right - left, 170);
+    x.save();
+    x.beginPath();
+    x.rect(left, 270, right - left, 170);
+    x.clip();
+    for (let y = 278, row = 0; y < 440; y += 22, row++) {
+      x.strokeStyle = 'rgba(226, 173, 144, 0.28)';
+      x.lineWidth = 2;
+      x.beginPath();
+      x.moveTo(left, y);
+      x.lineTo(right, y);
+      x.stroke();
+      const offset = row % 2 ? -24 : 0;
+      for (let tx = left + offset; tx < right; tx += 48) {
+        x.strokeStyle = 'rgba(35, 25, 22, 0.42)';
+        x.beginPath();
+        x.moveTo(tx, y);
+        x.lineTo(tx, y + 22);
+        x.stroke();
+      }
+    }
+    x.restore();
+    x.fillStyle = cream;
+    x.fillRect(left - 12, 258, right - left + 24, 14);
+    x.fillRect(left - 12, 438, right - left + 24, 18);
+  };
+  brickPanel(180, 470);
+  brickPanel(1578, 1868);
+
+  const roundGrille = cx => {
+    const cy = 354, r = 62;
+    x.save();
+    x.beginPath();
+    x.arc(cx, cy, r, 0, Math.PI * 2);
+    x.clip();
+    const g = x.createRadialGradient(cx - 18, cy - 22, 4, cx, cy, r);
+    g.addColorStop(0, '#d7dfdc');
+    g.addColorStop(1, '#74807c');
+    x.fillStyle = g;
+    x.fillRect(cx - r, cy - r, r * 2, r * 2);
+    x.strokeStyle = '#333b39';
+    x.lineWidth = 5;
+    for (let i = -3; i <= 3; i++) {
+      const offset = i * 18;
+      x.beginPath();
+      x.moveTo(cx - r, cy + offset);
+      x.lineTo(cx + r, cy + offset);
+      x.moveTo(cx + offset, cy - r);
+      x.lineTo(cx + offset, cy + r);
+      x.stroke();
+    }
+    x.strokeStyle = '#d9d4c6';
+    x.lineWidth = 7;
+    x.beginPath();
+    x.arc(cx, cy, r - 4, 0, Math.PI * 2);
+    x.stroke();
+    x.restore();
+    x.strokeStyle = '#4d514f';
+    x.lineWidth = 7;
+    x.beginPath();
+    x.arc(cx, cy, r + 2, 0, Math.PI * 2);
+    x.stroke();
+  };
+  roundGrille(326);
+  roundGrille(1722);
+
+  const banner = x.createLinearGradient(0, 278, 0, 406);
+  banner.addColorStop(0, '#174779');
+  banner.addColorStop(0.5, '#0c3564');
+  banner.addColorStop(1, '#08284f');
+  x.fillStyle = 'rgba(32, 23, 22, 0.38)';
+  x.fillRect(516, 290, 1016, 124);
+  x.fillStyle = banner;
+  x.fillRect(526, 280, 996, 122);
+  x.strokeStyle = '#d6b45c';
+  x.lineWidth = 8;
+  x.strokeRect(538, 290, 972, 102);
+  x.strokeStyle = 'rgba(255, 226, 145, 0.7)';
+  x.lineWidth = 2;
+  x.strokeRect(546, 298, 956, 86);
+
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillStyle = '#f5e6b5';
+  fitFont(x, 'SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI DƯƠNG', 820, 27);
+  x.fillText('SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI DƯƠNG', 1095, 316);
+  x.fillStyle = '#ffdc72';
+  fitFont(x, 'TRƯỜNG TRUNG HỌC PHỔ THÔNG NINH GIANG', 820, 44);
+  x.fillText('TRƯỜNG TRUNG HỌC PHỔ THÔNG NINH GIANG', 1095, 358);
+  // fitFont(x, 'NĂM HỌC 2025 - 2026', 850, 48);
+  // x.fillText('NĂM HỌC 2025 - 2026', 1024, 369);
+
+  x.fillStyle = cream;
+  x.fillRect(180, 456, 290, 20);
+  x.fillRect(1578, 456, 290, 20);
+  for (const [left, right] of [[180, 470], [1578, 1868]]) {
+    x.fillStyle = '#d3d0c6';
+    x.fillRect(left + 18, 486, right - left - 36, 254);
+    x.fillStyle = '#373a38';
+    x.fillRect(left + 42, 516, 62, 185);
+    x.fillRect(left + 125, 516, 92, 185);
+    x.fillStyle = '#bbc1bd';
+    x.fillRect(left + 48, 522, 50, 165);
+    x.fillRect(left + 132, 522, 78, 165);
+    x.fillStyle = 'rgba(255,255,255,0.32)';
+    x.fillRect(left + 52, 526, 15, 157);
+    x.fillRect(left + 137, 526, 22, 157);
+    x.fillStyle = '#8f8e87';
+    x.fillRect(left + 10, 706, right - left - 20, 12);
+  }
+
+  x.fillStyle = '#343735';
+  for (const [left, right] of [[0, 48], [2000, 2048]]) {
+    x.fillRect(left, 490, right - left, 13);
+    x.fillRect(left, 724, right - left, 13);
+    for (let px = left + 8; px < right; px += 16) x.fillRect(px, 500, 5, 226);
+    x.fillRect(left, 554, right - left, 8);
+    x.fillRect(left, 660, right - left, 8);
+  }
+
+  const flags = ['#d51e2b', '#f28b16', '#e23d67', '#1b9cc2', '#f3d323', '#75c84b', '#884bb0', '#ed4268', '#d51e2b'];
+  flags.forEach((color, i) => {
+    const px = 350 + i * 168;
+    x.strokeStyle = '#555653';
+    x.lineWidth = 4;
+    x.beginPath();
+    x.moveTo(px, 109);
+    x.lineTo(px, 28);
+    x.stroke();
+    x.fillStyle = color;
+    x.beginPath();
+    x.moveTo(px + 2, 31);
+    x.lineTo(px + 34, 42);
+    x.lineTo(px + 2, 73);
+    x.closePath();
+    x.fill();
+    x.strokeStyle = 'rgba(255,255,255,0.35)';
+    x.lineWidth = 2;
+    x.beginPath();
+    x.moveTo(px + 4, 35);
+    x.lineTo(px + 25, 43);
+    x.stroke();
+  });
+
+  const texture = toTexture(c);
+  const logo = new Image();
+  logo.onload = () => {
+    x.drawImage(logo, 552, 299, 84, 84);
+    texture.needsUpdate = true;
+  };
+  logo.onerror = () => console.error('Unable to load school gate logo: /reference/logo-truong-tren-cong.png');
+  logo.src = new URL('../reference/logo-truong-tren-cong.png', import.meta.url).href;
+  return texture;
 }
 
 // Sân bóng cỏ nhân tạo: sọc cắt cỏ + vạch vôi (toàn sân một ảnh, 105×68 m tỉ lệ).

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { createCharacter, lookFromProfile } from './character.js';
 
-const KEY = 'vinhbao-profile';
+const KEY = 'ninhgiang-profile';
 const FIRST_YEAR = 1961;
 const LAST_YEAR = new Date().getFullYear();
 const SUBJECTS = ['Toán', 'Ngữ văn', 'Tiếng Anh', 'Vật lí', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lí', 'GDKT&PL', 'Tin học', 'Công nghệ', 'Thể dục', 'GDQP-AN', 'Khác'];

@@ -99,7 +99,7 @@ function pushStats() {
   if (!started) return;
   mp.reportStats?.(collected, mp.notes?.length ?? 0);
 }
-const exteriorBounds = { minX: -95, maxX: 95, minZ: -43.4, maxZ: 52.6 };
+const exteriorBounds = { minX: -158, maxX: 95, minZ: -110, maxZ: 52.6 };
 const col = new Collision(world.colliders, exteriorBounds);
 
 // ---------- player ----------
@@ -206,8 +206,8 @@ const NPC_DEFS = [
   { name: 'Tuấn', kind: 'boy', x: 14, z: 28, bag: 0x8a2d2d, lines: ['Sáng nào tớ cũng đạp xe hơn 5 cây số tới trường.', 'Cuối cổng có biển “Kỷ cương – Tình thương – Trách nhiệm”, cậu đọc chưa?'] },
   { name: 'Ngọc', kind: 'aodai', x: 20, z: -4, lines: ['Tuần sau trường mình tập văn nghệ trên sân khấu kia.', 'Băng rôn trên dãy nhà bên phải ghi “Hiền tài là nguyên khí quốc gia” — câu đó khắc trên bia Văn Miếu đấy.'] },
   { name: 'Dũng', kind: 'boy', x: -4, z: 26, bag: 0x2f6f3f, lines: ['Sáng thứ Hai cả trường xếp hàng chào cờ trước sân khấu ở sân trong.', 'Ra ngoài cổng mà xem hàng cau vua với cây phượng, đẹp lắm.'] },
-  // trực cổng: thầy Thanh và đội Sao Đỏ
-  { name: 'Thầy Thanh', kind: 'boy', shirt: 0xf4f6f8, pants: 0x2f3542, x: -4.3, z: 34.5, teacher: true, gateWatch: true, gatePatrol: true, homeX0: -16, homeX1: 10, homeZ0: 30.5, homeZ1: 41.5, face: 0.25,
+  // trực cổng: thầy Dương và đội Sao Đỏ
+  { name: 'Thầy Dương', kind: 'boy', shirt: 0xf4f6f8, pants: 0x2f3542, x: -4.3, z: 34.5, teacher: true, gateWatch: true, gatePatrol: true, homeX0: -16, homeX1: 10, homeZ0: 30.5, homeZ1: 41.5, face: 0.25,
     lines: ['Sơ vin vào em, tóc tai gọn gàng vào!', 'Đi học đúng giờ, mặc đúng đồng phục, đeo huy hiệu Đoàn đầy đủ nhé.', 'Xe đạp phải dắt bộ qua cổng, để đúng chỗ trong nhà xe.', 'Ngoài cổng đông quá — nhớ trật tự, đừng chen hàng quán ăn vặt.'],
     greet: 'Sơ vin vào em, tóc tai gọn gàng vào!' },
   { name: 'Bạn Sao Đỏ', kind: 'boy', armband: true, x: -2.9, z: 33.6, static: true, face: Math.PI / 2,
@@ -930,7 +930,7 @@ $('clsCopy').addEventListener('click', async () => {
 });
 $('clsShare').addEventListener('click', () => {
   const c = mp.classInfo;
-  navigator.share?.({ title: `Lớp ${c.className} (${c.year}–${+c.year + 3}) – THPT Vĩnh Bảo`, text: `Vào lớp ${c.className} niên khóa ${c.year}–${+c.year + 3} trên sân trường THPT Vĩnh Bảo 3D nhé!`, url: inviteLink(c.code) }).catch(() => {});
+  navigator.share?.({ title: `Lớp ${c.className} (${c.year}–${+c.year + 3}) – THPT Ninh Giang`, text: `Vào lớp ${c.className} niên khóa ${c.year}–${+c.year + 3} trên sân trường THPT Ninh Giang 3D nhé!`, url: inviteLink(c.code) }).catch(() => {});
 });
 $('clsLeave').addEventListener('click', () => {
   mp.classLeave();
@@ -1251,7 +1251,7 @@ function npcSay(n, text, ms = 5500) {
   n.bubbleUntil = performance.now() + ms;
   n.talkT = Math.max(n.talkT, 3);
 }
-// thầy Thanh nhắc học sinh khi đi qua cổng
+// thầy Dương nhắc học sinh khi đi qua cổng
 let gateSaidAt = -1e9;
 function gateWatch() {
   const t = npcs.find(n => n.gateWatch), guard = npcs.find(n => n.staff);
@@ -1260,7 +1260,7 @@ function gateWatch() {
   if (Math.hypot(player.pos.x, player.pos.z - 34) < 4.5 && now - gateSaidAt > 25000) {
     gateSaidAt = now;
     npcSay(t, t.lines[0]);
-    toast(`Thầy Thanh: ${t.lines[0]}`, 3000);
+    toast(`Thầy Dương: ${t.lines[0]}`, 3000);
     if (guard) setTimeout(() => {
       npcSay(guard, guard.lines[0]);
       toast(`Bác bảo vệ: ${guard.lines[0]}`, 3500);
@@ -1338,7 +1338,7 @@ function updateCollectibles(t, dt) {
       $('count').textContent = collected;
       chimeSound();
       const done = collected === TOTAL
-        ? `\n\n🎉 Bạn đã tìm đủ ${TOTAL} trang lưu bút! Cảm ơn bạn đã về thăm mái trường THPT Vĩnh Bảo.`
+        ? `\n\n🎉 Bạn đã tìm đủ ${TOTAL} trang lưu bút! Cảm ơn bạn đã về thăm mái trường THPT Ninh Giang.`
         : '';
       showDialog(c.title, c.text + done, `Trang lưu bút ${collected}/${TOTAL}`);
       pushStats();

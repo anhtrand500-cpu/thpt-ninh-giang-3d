@@ -1,4 +1,4 @@
-// Phòng học trong khối nhà — tham khảo ảnh phòng THPT Vĩnh Bảo: cửa đóng/mở (E), không xuyên tường.
+// Phòng học trong khối nhà — tham khảo ảnh phòng THPT Ninh Giang: cửa đóng/mở (E), không xuyên tường.
 import * as THREE from 'three';
 import * as T from './textures.js';
 

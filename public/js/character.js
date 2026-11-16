@@ -289,7 +289,7 @@ export function createCharacter(o = {}) {
   return { root, update };
 }
 
-// Ngoại hình theo hồ sơ — đồng phục HS theo ảnh lễ ngoài trời THPT Vĩnh Bảo (~2026): mùa hè áo trắng + quần xanh đậm.
+// Ngoại hình theo hồ sơ — đồng phục HS theo ảnh lễ ngoài trời THPT Ninh Giang (~2026): mùa hè áo trắng + quần xanh đậm.
 export function lookFromProfile(p) {
   const female = p.gender === 'female';
   const winter = p.season === 'winter';
@@ -302,7 +302,7 @@ export function lookFromProfile(p) {
   const kind = female ? 'girl' : 'boy';
   const bag = female ? 0xad1457 : 0x1565c0;
   if (winter) {
-  // Áo khoác gió hai tầng trắng / xanh navy (ảnh đồng phục mùa đông THPT Vĩnh Bảo).
+  // Áo khoác gió hai tầng trắng / xanh navy (ảnh đồng phục mùa đông THPT Ninh Giang).
     return {
       kind,
       shirt: white,

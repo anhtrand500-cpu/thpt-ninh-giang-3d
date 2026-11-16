@@ -1,6 +1,6 @@
-# THPT Vĩnh Bảo – Ký ức sân trường (bản thử nghiệm)
+# THPT Ninh Giang – Ký ức sân trường (bản thử nghiệm)
 
-Game 3D đi dạo khuôn viên Trường THPT Vĩnh Bảo (Hải Phòng), chạy trên trình duyệt.
+Game 3D đi dạo khuôn viên Trường THPT Ninh Giang , chạy trên trình duyệt.
 
 **Mã nguồn mở** (MIT) — tổ chức [Moundoo Solution](https://github.com/Moundoo-Solution). Bản demo có thể host trên Cloudflare Workers; server multiplayer trong repo là **mẫu tham khảo** — tự `wrangler login` + `npm run deploy` với tài khoản của bạn (không dùng chung production của người khác).
 Công nghệ giống trang 12tranphu.mango.pro.vn: **Three.js r170 + JavaScript module thuần**, không build frontend, không file mô hình 3D.
@@ -64,7 +64,7 @@ Gói **Free** của Cloudflare đủ cho dự án kỷ niệm lớp/trường:
 1. Tạo tài khoản [Cloudflare](https://dash.cloudflare.com/sign-up) (miễn phí).
 2. `npm install -g wrangler && wrangler login`
 3. Trong thư mục game: `npm run deploy`
-4. Wrangler in URL dạng `https://thpt-vinh-bao.<tài-khoản>.workers.dev` — chia link cho cựu HS/GV.
+4. Wrangler in URL dạng `https://thpt-ninh-giang.<tài-khoản>.workers.dev` — chia link cho cựu HS/GV.
 
 **Lưu ý:** Lần deploy đầu có thể hỏi bật Durable Objects — chọn Yes. Một phòng `san-truong` duy nhất (cả trường chung một sân); tối đa **100** người cùng lúc (`MAX_PLAYERS` trong `server/worker.js`, Workers Paid).
 
@@ -103,5 +103,5 @@ Dự án hiện chọn **một Worker Cloudflare** vì: không server riêng, HT
 Tham số URL: `?start` (bỏ intro), `?nosync` (chơi một mình), `?shot=gate|…` (camera cố định).
 
 ## Tư liệu
-Ảnh trong `public/reference/` — nguồn https://thptvinhbao.haiphong.edu.vn.
+Ảnh trong `public/reference/`
 **Trong trường:** sân rộng (tường rào 124×80 m), mỗi dãy nhà có lồng cầu thang ở một đầu (hai đợt + chiếu nghỉ) để lên hành lang các tầng; va chạm có `bottom` nên sàn tầng trên đi được mà tầng dưới vẫn đi bên dưới lát terrazzo, nhà chính 3 tầng + sân khấu lễ phía trước, hai dãy cánh trái/phải, không cột cờ giữa sân; cổng theo ảnh 2022. **Đối diện cổng** (Google Street View 4/2026, ảnh trong `public/reference/gg-street-*.png`): vỉa hè đá xám, hàng rào sắt xanh hoa văn, đèn cột đôi cầu tròn, cây non chống cọc, sân bóng cỏ nhân tạo có khán đài vàng ba phía, cột đèn cao áp, lưới chắn, nhà thi đấu mái vòm; quán Tuấn Thảo ở góc phía Tây cạnh giàn hoa giấy tím; phía Đông là phố nhà ống. Bên trường: cau vua, cây bồn tròn viền đỏ, cột điện và dây điện.

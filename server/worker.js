@@ -4,7 +4,7 @@
 //   Dùng WebSocket Hibernation API để không tốn thời gian chạy khi mọi người đứng yên.
 import { DurableObject } from 'cloudflare:workers';
 
-const MAX_PLAYERS = 100; // Workers Paid — giới hạn phòng san-truong (giảm tải)
+const MAX_PLAYERS = 500; // Workers Paid — giới hạn phòng san-truong (giảm tải)
 const STALE_MS = 45 * 60_000; // đứng yên / tab nền — không quét đá khỏi phòng (chấp nhận lag hơn là disconnect)
 const GHOST_MS = 8 * 60_000;  // socket chưa hello xong quá lâu → dọn
 const SWEEP_MS = 5 * 60_000;  // quét nhẹ, tránh giật khi đông người

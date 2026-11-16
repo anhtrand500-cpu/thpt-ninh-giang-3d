@@ -2,11 +2,13 @@
 import * as THREE from 'three';
 
 export function installYardPlay(scene, W, root) {
+  const bounds = W.soccerBounds;
+  const spawn = { x: (bounds.minX + bounds.maxX) / 2, z: (bounds.minZ + bounds.maxZ) / 2 };
   const ball = new THREE.Mesh(
     new THREE.SphereGeometry(0.22, 14, 12),
     new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 }),
   );
-  ball.position.set(8, 0.22, 18);
+  ball.position.set(spawn.x, 0.22, spawn.z);
   ball.castShadow = true;
   root.add(ball);
   const stripe = new THREE.Mesh(
@@ -20,7 +22,7 @@ export function installYardPlay(scene, W, root) {
     pos: ball.position,
     vel: new THREE.Vector3(),
     onGround: true,
-    spawn: { x: 8, z: 18 },
+    spawn,
   };
 
   const albums = [
@@ -44,10 +46,12 @@ export function installYardPlay(scene, W, root) {
 
 export function tickSoccer(W, col, player, dt) {
   const b = W.soccerBall;
-  if (!b) return;
+  const bounds = W.soccerBounds;
+  if (!b || !bounds) return;
   const { pos, vel, mesh } = b;
+  const insideField = p => p.x >= bounds.minX && p.x <= bounds.maxX && p.z >= bounds.minZ && p.z <= bounds.maxZ;
   const d = Math.hypot(pos.x - player.pos.x, pos.z - player.pos.z);
-  const kick = d < 0.85 && Math.hypot(player.vel.x, player.vel.z) > 2;
+  const kick = insideField(player.pos) && insideField(pos) && d < 0.85 && Math.hypot(player.vel.x, player.vel.z) > 2;
   if (kick && performance.now() - (b.lastKick || 0) > 400) {
     b.lastKick = performance.now();
     const dx = pos.x - player.pos.x, dz = pos.z - player.pos.z, len = Math.hypot(dx, dz) || 1;
@@ -57,7 +61,15 @@ export function tickSoccer(W, col, player, dt) {
   vel.multiplyScalar(0.985);
   pos.x += vel.x * dt;
   pos.z += vel.z * dt;
-  const gY = col.groundAt(pos.x, pos.z, 0);
+  if (pos.x < bounds.minX) { pos.x = bounds.minX; if (vel.x < 0) vel.x *= -0.35; }
+  else if (pos.x > bounds.maxX) { pos.x = bounds.maxX; if (vel.x > 0) vel.x *= -0.35; }
+  if (pos.z < bounds.minZ) { pos.z = bounds.minZ; if (vel.z < 0) vel.z *= -0.35; }
+  else if (pos.z > bounds.maxZ) { pos.z = bounds.maxZ; if (vel.z > 0) vel.z *= -0.35; }
+  let gY = col.groundAt(pos.x, pos.z, 0);
+  col.resolve(pos, gY, 0.22);
+  pos.x = Math.max(bounds.minX, Math.min(bounds.maxX, pos.x));
+  pos.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, pos.z));
+  gY = col.groundAt(pos.x, pos.z, 0);
   let y = gY + 0.22;
   if (!b.onGround) {
     b.vy = (b.vy ?? 0) - 12 * dt;
@@ -67,11 +79,6 @@ export function tickSoccer(W, col, player, dt) {
   mesh.position.set(pos.x, y, pos.z);
   mesh.rotation.x += vel.z * dt * 2;
   mesh.rotation.z -= vel.x * dt * 2;
-  if (Math.abs(pos.x) > 58 || pos.z > 52 || pos.z < -42) {
-    pos.set(b.spawn.x, y, b.spawn.z);
-    vel.set(0, 0, 0);
-  }
-  col.resolve(pos, gY, 0.22);
 }
 
 let flagDoneSession = false;
