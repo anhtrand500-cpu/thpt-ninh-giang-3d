@@ -193,10 +193,10 @@ export function buildWorld(scene) {
     box(metal, WORLD, 0.95, 0.07, 0.07, x, 5.15, z);
     box(housing, WORLD, 0.58, 0.15, 0.34, x + 0.18, 4.98, z);
     box(bulb, WORLD, 0.48, 0.025, 0.25, x + 0.18, 4.955, z);
-    const light = new THREE.PointLight(0xffd18a, 0, 22, 2);
+    const light = new THREE.PointLight(0xffd18a, 0, 32, 2);
     light.position.set(x + 0.18, 4.9, z);
     scene.add(light);
-    W.lamps.push({ light, bulb, maxIntensity: 18 });
+    W.lamps.push({ light, bulb, maxIntensity: 24 });
     W.colliders.push({ minX: x - 0.22, maxX: x + 0.22, minZ: z - 0.22, maxZ: z + 0.22, top: 5.4 });
   }
   // Mặt phẳng riêng (không gộp) — dùng cho biển chữ có texture riêng.
@@ -784,12 +784,25 @@ export function buildWorld(scene) {
     box(gateFloodMetal, WORLD, 1.1, 0.08, 0.08, headX, 8.55, z);
     box(gateFloodHousing, WORLD, 0.78, 0.34, 0.5, headX, 8.21, z);
     box(gateFloodBulb, WORLD, 0.65, 0.025, 0.38, headX, 8.185, z);
-    const light = new THREE.SpotLight(0xffe6bc, 0, 38, Math.PI / 3, 0.45, 2);
+    const light = new THREE.SpotLight(0xffe6bc, 0, 70, Math.PI / 3, 0.45, 2);
     light.position.set(headX, 8.16, z);
-    light.target.position.set(s * 3.2, 0.5, 35.6);
+    light.target.position.set(s * 5, 0.5, 8);
     scene.add(light, light.target);
-    W.lamps.push({ light, bulb: gateFloodBulb, maxIntensity: 130 });
+    W.lamps.push({ light, bulb: gateFloodBulb, maxIntensity: 160 });
     W.colliders.push({ minX: x - 0.24, maxX: x + 0.24, minZ: z - 0.24, maxZ: z + 0.24, top: 8.8 });
+  }
+  // Đèn rọi biển tên từ phía đường để bảng sáng rõ vào ban đêm.
+  const signLightMetal = M(0x454a4d, { metalness: 0.6, roughness: 0.4 });
+  const signLightBulb = M(0xffe5ad, { emissive: 0xffc66b, emissiveIntensity: 0.02, roughness: 0.28 });
+  for (const s of [-1, 1]) {
+    const x = s * 3.2;
+    box(signLightMetal, WORLD, 0.5, 0.14, 0.32, x, 5.8, 37.9);
+    box(signLightBulb, WORLD, 0.38, 0.025, 0.22, x, 5.78, 37.72);
+    const light = new THREE.SpotLight(0xffe6bc, 0, 12, Math.PI / 5, 0.5, 2);
+    light.position.set(x, 5.75, 37.72);
+    light.target.position.set(s * 2.2, 3.7, 36.42);
+    scene.add(light, light.target);
+    W.lamps.push({ light, bulb: signLightBulb, maxIntensity: 95 });
   }
   // phòng bảo vệ nhỏ ngay phía trong cổng, bên trái lối vào (chỗ thầy Dương đứng trực)
   {
@@ -1334,7 +1347,7 @@ export function buildWorld(scene) {
       blob(fenceGreen, WORLD, x, 1.52, 53.1, 0.11, 0.11, 0.11);
     }
     W.colliders.push({ minX: -60.2, maxX: 60.2, minZ: 52.9, maxZ: 53.3, top: 1.5 });
-    const globe = M(0xf4f1e6, { emissive: 0xfff3d0, emissiveIntensity: 0.25 });
+    const globe = M(0xf4f1e6, { emissive: 0xfff3d0, emissiveIntensity: 0.02 });
     for (let x = -56; x <= 56; x += 16) {
       // đèn cột đôi cầu tròn màu xanh
       cyl(fenceGreen, WORLD, 0.08, 3.5, x, 0, 52.5, 0.7);
@@ -1343,6 +1356,10 @@ export function buildWorld(scene) {
         cyl(fenceGreen, WORLD, 0.03, 0.25, x + s * 0.42, 3.05, 52.5);
         blob(globe, WORLD, x + s * 0.42, 2.95, 52.5, 0.2, 0.2, 0.2);
       }
+      const light = new THREE.PointLight(0xffe6b5, 0, 22, 2);
+      light.position.set(x, 3, 52.5);
+      scene.add(light);
+      W.lamps.push({ light, bulb: globe, maxIntensity: 22 });
       W.colliders.push({ minX: x - 0.12, maxX: x + 0.12, minZ: 52.38, maxZ: 52.62, top: 3.5 });
     }
     for (let x = -60; x <= 60; x += 16) {
@@ -1361,11 +1378,17 @@ export function buildWorld(scene) {
       W.colliders.push({ minX: tx - 0.75, maxX: tx + 0.75, minZ: 49.65, maxZ: 51.15, top: 0.6 });
     }
     // đèn đường cao, cần vươn ra lòng đường
+    const roadLampMetal = M(0xa7a9ab, { metalness: 0.5 });
+    const roadLampBulb = M(0xfff1cf, { emissive: 0xffd98a, emissiveIntensity: 0.02 });
     for (let x = -96; x <= 96; x += 32) {
       if (x === 0) continue;
-      cyl(M(0xa7a9ab, { metalness: 0.5 }), WORLD, 0.1, 9, x, 0, 48.5, 0.6);
-      batch.add(M(0xa7a9ab, { metalness: 0.5 }), new THREE.CylinderGeometry(0.04, 0.05, 2.2, 6).rotateX(Math.PI / 2 - 0.25), xform(x, 8.9, 47.5));
-      box(M(0xdedede), WORLD, 0.3, 0.12, 0.7, x, 9.05, 46.4);
+      cyl(roadLampMetal, WORLD, 0.1, 9, x, 0, 48.5, 0.6);
+      batch.add(roadLampMetal, new THREE.CylinderGeometry(0.04, 0.05, 2.2, 6).rotateX(Math.PI / 2 - 0.25), xform(x, 8.9, 47.5));
+      box(roadLampBulb, WORLD, 0.3, 0.12, 0.7, x, 9.05, 46.4);
+      const light = new THREE.PointLight(0xffe3b1, 0, 46, 2);
+      light.position.set(x, 8.95, 46.4);
+      scene.add(light);
+      W.lamps.push({ light, bulb: roadLampBulb, maxIntensity: 75 });
       W.colliders.push({ minX: x - 0.15, maxX: x + 0.15, minZ: 48.35, maxZ: 48.65, top: 9 });
     }
 
