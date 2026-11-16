@@ -89,7 +89,7 @@ function createSnow(scene, count) {
   return { flakes, positions, geometry, points };
 }
 
-export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, hemisphere, sun, renderer, status, lamps = [] }) {
+export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, hemisphere, sun, renderer, status, clockDisplay, clockIcon, lamps = [] }) {
   const rain = createRain(scene, 360);
   const snow = createSnow(scene, 220);
   const topDay = new THREE.Color();
@@ -98,10 +98,10 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   const skyBottom = new THREE.Color();
   const fogColor = new THREE.Color();
   const cloudColor = new THREE.Color();
-  const nightTop = new THREE.Color(0x071325);
-  const nightBottom = new THREE.Color(0x1b2b40);
+  const nightTop = new THREE.Color(0x0b1d42);
+  const nightBottom = new THREE.Color(0x233b5b);
   const fogDay = new THREE.Color(0xd6e7f3);
-  const fogNight = new THREE.Color(0x111a2b);
+  const fogNight = new THREE.Color(0x1b2940);
   const clearTop = new THREE.Color(0x3b8be0);
   const cloudyTop = new THREE.Color(0x748391);
   const clearBottom = new THREE.Color(0xe4eef5);
@@ -114,13 +114,12 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   const hemisphereDay = new THREE.Color(0xdfefff);
   const hemisphereNight = new THREE.Color(0x34445e);
   const groundDay = new THREE.Color(0x7a6a4a);
-  const groundNight = new THREE.Color(0x202838);
+  const groundNight = new THREE.Color(0x303a50);
   const lampMaterials = new Set(lamps.map(lamp => lamp.bulb));
   const timeFormatter = new Intl.DateTimeFormat('vi-VN', {
     timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit',
   });
 
-  const FORCE_DAYLIGHT_SCENE = true;
   const now = Date.now();
   const fallbackHour = localClock(now, 7 * 3600).hour;
   const state = {
@@ -139,8 +138,14 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   let requestActive = false;
 
   function renderStatus(epoch) {
-    if (!status) return;
     const time = timeFormatter.format(new Date(epoch));
+    if (clockDisplay) clockDisplay.textContent = time;
+    if (clockIcon) {
+      const localHour = localClock(epoch, state.offsetSeconds).hour;
+      const isDay = state.loaded ? state.isDay : localHour >= 6 && localHour < 18;
+      clockIcon.textContent = isDay ? '☼' : '☾';
+    }
+    if (!status) return;
     if (!state.loaded) {
       status.textContent = `Ninh Giang · ${time} · ${state.error ? 'Chưa tải được thời tiết' : 'Đang đồng bộ thời tiết…'}`;
       status.title = state.error
@@ -195,8 +200,8 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   }
 
   const starsGeometry = new THREE.BufferGeometry();
-  const starPositions = new Float32Array(360 * 3);
-  for (let i = 0; i < 360; i++) {
+  const starPositions = new Float32Array(520 * 3);
+  for (let i = 0; i < 520; i++) {
     const azimuth = Math.random() * Math.PI * 2;
     const height = 0.12 + Math.random() * 0.88;
     const radius = Math.sqrt(1 - height * height);
@@ -206,7 +211,7 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   }
   starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
   const starMaterial = new THREE.PointsMaterial({
-    color: 0xe1eaff, size: 1.5, sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false, fog: false,
+    color: 0xe1eaff, size: 1.8, sizeAttenuation: false, transparent: true, opacity: 0.95, depthWrite: false, fog: false,
   });
   const stars = new THREE.Points(starsGeometry, starMaterial);
   stars.frustumCulled = false;
@@ -216,8 +221,7 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   function update(dt, elapsed, targetX, targetZ) {
     const epoch = Date.now();
     const solar = solarDirection(epoch, state.offsetSeconds);
-    const daylightNatural = state.isDay ? clamp((solar.y + 0.03) / 0.48, 0, 1) : 0;
-    const daylight = FORCE_DAYLIGHT_SCENE ? 1 : daylightNatural;
+    const daylight = state.isDay ? clamp((solar.y + 0.03) / 0.48, 0, 1) : 0;
     const cloud = state.cloudCover / 100;
     const mode = precipitationType(state.weatherCode);
     const dimming = (1 - cloud * 0.55) * (mode === 'rain' ? 0.78 : 1);
@@ -237,7 +241,7 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
 
     hemisphere.color.copy(hemisphereNight).lerp(hemisphereDay, daylight);
     hemisphere.groundColor.copy(groundNight).lerp(groundDay, daylight);
-    hemisphere.intensity = 0.36 + 0.79 * daylight * (1 - cloud * 0.2);
+    hemisphere.intensity = 0.72 + 0.45 * daylight * (1 - cloud * 0.2);
     sun.color.copy(warmSun).lerp(coolSun, 1 - sunriseWarmth);
     sun.intensity = 2.7 * daylight * dimming;
     sun.target.position.set(targetX, 0, targetZ);
@@ -246,10 +250,10 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
       Math.max(0.08, solar.y) * 80,
       targetZ + solar.z * 80,
     );
-    const lampLevel = FORCE_DAYLIGHT_SCENE ? 0 : clamp((0.38 - daylight) / 0.38, 0, 1);
+    const lampLevel = clamp((0.38 - daylight) / 0.38, 0, 1);
     for (const lamp of lamps) lamp.light.intensity = lamp.maxIntensity * lampLevel;
     for (const material of lampMaterials) material.emissiveIntensity = 0.02 + lampLevel * 0.95;
-    renderer.toneMappingExposure = FORCE_DAYLIGHT_SCENE ? 1.0 : 0.72 + 0.28 * daylight;
+    renderer.toneMappingExposure = 0.9 + 0.1 * daylight;
 
     cloudColor.copy(clearCloud).lerp(stormCloud, Math.max(cloud * 0.8, mode === 'rain' ? 0.75 : 0));
     cloudMaterial.color.copy(nightCloud).lerp(cloudColor, daylight);
@@ -260,9 +264,9 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
     clouds.rotation.y = elapsed * 0.004;
     sky.position.copy(camera.position);
 
-    stars.visible = !FORCE_DAYLIGHT_SCENE && !state.isDay && cloud < 0.68 && !foggy;
+    stars.visible = !state.isDay && cloud < 0.68 && !foggy;
     stars.position.copy(camera.position);
-    starMaterial.opacity = 0.85 * (1 - cloud);
+    starMaterial.opacity = 0.95 * (1 - cloud * 0.55);
 
     rain.lines.visible = mode === 'rain';
     if (mode === 'rain') {

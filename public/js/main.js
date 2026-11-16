@@ -98,7 +98,8 @@ const world = buildWorld(scene);
 const fireworks = createFireworks(scene);
 const hearts = createHearts(scene);
 const environment = createEnvironment({
-  scene, camera, sky, clouds, cloudMaterial, hemisphere, sun, renderer, status: $('weatherStatus'), lamps: world.lamps,
+  scene, camera, sky, clouds, cloudMaterial, hemisphere, sun, renderer, status: $('weatherStatus'),
+  clockDisplay: $('gameClock'), clockIcon: $('clockIcon'), lamps: world.lamps,
 });
 let collected = 0;
 const TOTAL = world.collectibles.length;
@@ -336,6 +337,12 @@ function queueJump() {
   jumpQueuedUntil = performance.now() + JUMP_BUFFER_MS;
 }
 let yaw = 0, pitch = 0.3, dist = 7, camD = 7;
+let overviewOn = false, overviewBlend = 0;
+const defaultCameraFov = camera.fov;
+const overviewPosition = new THREE.Vector3(52, 96, 98);
+const overviewTarget = new THREE.Vector3(0, 0, -4);
+const followCameraPosition = new THREE.Vector3();
+const blendedCameraTarget = new THREE.Vector3();
 let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false;
 let galleryOpen = false, boardOpen = false;
 
@@ -355,6 +362,22 @@ function releaseGameFocus() {
   if (ae?.blur && ae !== document.body) ae.blur();
 }
 
+function toggleOverview() {
+  if (!started || uiBlocksGame()) return;
+  overviewOn = !overviewOn;
+  const button = $('overviewBtn');
+  button.setAttribute('aria-pressed', String(overviewOn));
+  button.textContent = overviewOn ? '↩ Trở về' : '🛩 Toàn cảnh';
+  button.title = overviewOn ? 'Trở về góc nhìn nhân vật (phím V)' : 'Xem toàn bộ khuôn viên (phím V)';
+  toast(
+    overviewOn
+      ? 'Đang xem toàn cảnh từ trên cao — bấm V hoặc nút Toàn cảnh để trở về.'
+      : 'Đã trở về góc nhìn nhân vật.',
+    3000,
+  );
+}
+ $('overviewBtn').addEventListener('click', toggleOverview);
+
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
   if (!started || menuOpen || formFocusBlocksKeys()) return;
@@ -363,6 +386,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { mapOn = !mapOn; $('minimap').hidden = !mapOn; return; }
   if (e.code === 'KeyT' && started && !menuOpen) { openChat(); e.preventDefault(); return; }
   if (e.code === 'KeyC' && started && !menuOpen) { openClass(); e.preventDefault(); return; }
+  if (e.code === 'KeyV' && !e.repeat) { toggleOverview(); e.preventDefault(); return; }
   if (e.code === 'KeyP' && !e.repeat) {
     const now = performance.now();
     if (now - lastFireworksAt >= 5000) {
@@ -386,7 +410,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit1' && !e.repeat) { setPlayerPose('sit'); e.preventDefault(); return; }
   if (e.code === 'Digit2' && !e.repeat) { setPlayerPose('lie'); e.preventDefault(); return; }
   if (e.code === 'Digit3' && !e.repeat) { setPlayerPose('dance'); e.preventDefault(); return; }
-  if ((e.code === 'Digit4' || e.code === 'KeyV') && !e.repeat) { triggerClap(); e.preventDefault(); return; }
+  if (e.code === 'Digit4' && !e.repeat) { triggerClap(); e.preventDefault(); return; }
   if (e.code === 'KeyB' && !e.repeat) { dismountBikeAnywhere(); e.preventDefault(); return; }
   if (e.code === 'Digit0' && !e.repeat) { clearPlayerPose(); e.preventDefault(); return; }
   keys.add(e.code);
@@ -516,6 +540,86 @@ function toast(text, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (t.hidden = true), ms);
 }
+
+function setupBackgroundMusic() {
+  const button = $('musicButton');
+  const volume = $('musicVolume');
+  const volumeLabel = $('musicVolumeLabel');
+  const audio = new Audio();
+  const volumeKey = 'ninhgiang-music-volume';
+  const tracks = [
+    { name: 'Xe Đạp (Thuỳ Chi Ft. M4U Piano Cover)', src: new URL('../audio/Xe Đạp (Thuỳ Chi Ft. M4U Piano Cover).mp3', import.meta.url).href },
+    { name: 'Những em bé Mặt Trời', src: new URL('../audio/Những em bé Mặt Trời.mp3', import.meta.url).href },
+    { name: 'Ngày Ấy Bạn Và Tôi (HITStory Live Version)', src: new URL('../audio/Ngày Ấy Bạn Và Tôi (HITStory Live Version).mp3', import.meta.url).href },
+    { name: 'Cho Tôi Xin Một Vé Đi Tuổi Thơ (HITStory Live Version)', src: new URL('../audio/Cho Tôi Xin Một Vé Đi Tuổi Thơ (HITStory Live Version).mp3', import.meta.url).href },
+    { name: 'Buồn Thì Cứ Khóc Đi', src: new URL('../audio/Buồn Thì Cứ Khóc Đi.mp3', import.meta.url).href },
+  ];
+  let trackIndex = 0;
+  audio.preload = 'none';
+
+  const savedVolume = localStorage.getItem(volumeKey);
+  const parsedVolume = savedVolume === null ? NaN : Number(savedVolume);
+  if (Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 100) {
+    volume.value = String(parsedVolume);
+  }
+  const syncVolume = () => {
+    const percent = Number(volume.value);
+    audio.volume = percent / 100;
+    volumeLabel.value = `${percent}%`;
+    localStorage.setItem(volumeKey, String(percent));
+  };
+  syncVolume();
+
+  function playTrack(index) {
+    trackIndex = index % tracks.length;
+    const track = tracks[trackIndex];
+    audio.src = track.src;
+    audio.volume = Number(volume.value) / 100;
+    audio.play().catch(error => {
+      console.error(`Background music playback failed for "${track.name}":`, error);
+      button.title = 'Bấm để phát nhạc nền';
+      toast('Không tự phát được nhạc. Bấm nút nốt nhạc để thử lại.', 4000);
+    });
+  }
+
+  function startPlaylist() {
+    if (!audio.paused) return;
+    if (audio.src) {
+      audio.play().catch(error => {
+        console.error('Background music playback failed:', error);
+        toast('Không phát được nhạc nền.', 4000);
+      });
+    } else {
+      playTrack(trackIndex);
+    }
+  }
+
+  button.addEventListener('click', () => {
+    if (audio.paused) startPlaylist();
+    else audio.pause();
+  });
+  volume.addEventListener('input', syncVolume);
+  audio.addEventListener('ended', () => {
+    playTrack((trackIndex + 1) % tracks.length);
+  });
+  audio.addEventListener('playing', () => {
+    button.classList.add('is-playing');
+    button.title = `Đang phát: ${tracks[trackIndex].name} · bấm để tạm dừng`;
+  });
+  audio.addEventListener('pause', () => {
+    button.classList.remove('is-playing');
+    button.title = `Đã tạm dừng: ${tracks[trackIndex].name} · bấm để phát tiếp`;
+  });
+  audio.addEventListener('error', () => {
+    if (!audio.currentSrc) return;
+    console.error(`Background music file could not be decoded: ${tracks[trackIndex].name}`, audio.error);
+    toast(`Không đọc được bài "${tracks[trackIndex].name}".`, 4000);
+  });
+
+  return startPlaylist;
+}
+const startBackgroundMusic = setupBackgroundMusic();
+
 function showDialog(title, text, kicker = '') {
   $('dlgKicker').textContent = kicker;
   $('dlgTitle').textContent = title;
@@ -1356,7 +1460,7 @@ function updatePlayer(dt) {
   iz -= joy.y;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || !started) ix = iz = 0;
+  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || !started || overviewOn) ix = iz = 0;
   const wantMove = Math.hypot(ix, iz) > 0.08;
   if (player.pose && wantMove) clearPlayerPose();
   if (player.pose === 'sit' || player.pose === 'lie') ix = iz = 0;
@@ -1519,9 +1623,17 @@ function updateCamera(dt) {
   const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
   const hit = Math.max(0.8, col.rayDist(target, dir, dist) - 0.3);
   camD += (hit - camD) * Math.min(1, dt * (hit < camD ? 25 : 4));
-  camera.position.copy(target).addScaledVector(dir, camD);
-  camera.position.y = Math.max(0.35, camera.position.y);
-  camera.lookAt(target);
+  followCameraPosition.copy(target).addScaledVector(dir, camD);
+  followCameraPosition.y = Math.max(0.35, followCameraPosition.y);
+  overviewBlend += ((overviewOn ? 1 : 0) - overviewBlend) * Math.min(1, dt * 2.5);
+  camera.position.copy(followCameraPosition).lerp(overviewPosition, overviewBlend);
+  blendedCameraTarget.copy(target).lerp(overviewTarget, overviewBlend);
+  const fov = defaultCameraFov - 15 * overviewBlend;
+  if (Math.abs(camera.fov - fov) > 0.1) {
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+  }
+  camera.lookAt(blendedCameraTarget);
 }
 
 const SHOTS = {
@@ -1587,6 +1699,7 @@ addEventListener('resize', () => {
 
 function start() {
   started = true;
+  startBackgroundMusic();
   $('intro').hidden = true;
   document.body.classList.add('playing');
   bookOpen = false;

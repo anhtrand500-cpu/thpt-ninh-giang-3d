@@ -18,6 +18,16 @@
 
   <div id="hud">
     <div class="brand"><b>THPT Ninh Giang</b><span>Ký ức sân trường</span></div>
+    <div class="clock" aria-label="Giờ địa phương">
+      <span id="clockIcon" class="clock-icon" aria-hidden="true">☾</span>
+      <time id="gameClock">--:--</time>
+    </div>
+    <button id="overviewBtn" type="button" class="pill" aria-pressed="false" title="Xem toàn bộ khuôn viên (phím V)">🛩 Toàn cảnh</button>
+    <div class="music-control" aria-label="Nhạc nền">
+      <button id="musicButton" class="music-button" type="button" title="Phát hoặc tạm dừng nhạc nền" aria-label="Phát hoặc tạm dừng nhạc nền">♫</button>
+      <input id="musicVolume" type="range" min="0" max="100" value="60" aria-label="Âm lượng nhạc nền">
+      <output id="musicVolumeLabel" for="musicVolume">60%</output>
+    </div>
     <div class="count">Lưu bút: <b id="count">0</b>/<span id="total">10</span></div>
     <button id="bookBtn" type="button" class="pill" title="Sổ lưu bút chung">Sổ LB</button>
     <button id="bxhBtn" type="button" class="pill" title="Bảng xếp hạng sưu tập lưu bút">BXH</button>
@@ -29,7 +39,7 @@
   <div id="weatherStatus" role="status" aria-live="polite">Đang đồng bộ thời tiết…</div>
   <div id="prompt" hidden><kbd>E</kbd><span id="promptText"></span></div>
   <div id="toast" hidden></div>
-  <div id="help">WASD: đi · Shift: chạy · Space: nhảy · E: tương tác / ngồi sau xe bạn · Nhà xe: lấy/trả xe đạp · B: xuống xe hoặc ghế sau · 1–3 tư thế · 4/V vỗ tay · 5 bắn tym · P pháo hoa · M bản đồ · T chat · C lớp</div>
+  <div id="help">WASD: đi · Shift: chạy · Space: nhảy · E: tương tác / ngồi sau xe bạn · Nhà xe: lấy/trả xe đạp · B: xuống xe hoặc ghế sau · 1–3 tư thế · 4 vỗ tay · 5 bắn tym · V toàn cảnh · P pháo hoa · M bản đồ · T chat · C lớp</div>
 
   <div id="guestbook" hidden>
     <div class="card gb">
