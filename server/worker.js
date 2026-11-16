@@ -43,12 +43,15 @@ function cleanProfile(p = {}) {
   };
 }
 
-// [x, y, z, hướng, tốc độ, tư thế?] — làm tròn cho gói tin nhỏ (tư thế: 0 đứng, 1 ngồi, 2 nằm, 3 nhảy múa).
+// [x, y, z, hướng, tốc độ, tư thế, người lái, màu xe].
 function cleanPos(p) {
   if (!Array.isArray(p)) return null;
   const r = v => Math.round(v * 100) / 100;
   const out = [r(clamp(p[0], -100, 100)), r(clamp(p[1], 0, 20)), r(clamp(p[2], -40, 60)), r(clamp(p[3], -10, 10)), r(clamp(p[4], 0, 10))];
-  if (p.length > 5 && p[5] != null) out[5] = clamp(Math.round(p[5]), 0, 3);
+  if (p.length > 5 && p[5] != null) out[5] = clamp(Math.round(p[5]), 0, 6);
+  if (Number.isSafeInteger(p[6]) && p[6] >= 0) out[6] = p[6];
+  else if (typeof p[6] === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(p[6])) out[6] = p[6];
+  if (p[7] != null && Number.isFinite(+p[7])) out[7] = Math.round(clamp(p[7], 0, 0xffffff));
   return out;
 }
 
@@ -330,6 +333,11 @@ export class SchoolRoom extends DurableObject {
         const first = !s.profile;
         s.profile = cleanProfile(m.profile);
         s.p = cleanPos(m.p) || s.p;
+        if (s.p?.[5] === 6) {
+          s.p[5] = 0;
+          delete s.p[6];
+          delete s.p[7];
+        }
         this.save(ws, s);
         if (first) {
           const key = clean(`${displayName(s.profile)}|${profileInfo(s.profile)}`, 80);
@@ -360,8 +368,32 @@ export class SchoolRoom extends DurableObject {
         if (++s.winN > MV_MAX_PER_S) return;
         const p = cleanPos(m.p);
         if (!p) return;
+        let seatReleased = false;
+        if (p[5] === 6) {
+          if (s.passengerOf == null || p[6] !== s.passengerOf) return;
+          const [, driver] = this.byId(s.passengerOf);
+          if (!driver || driver.bikePassenger !== s.id || driver.p?.[5] !== 5) {
+            this.releaseBikeSeats(ws, s);
+            return;
+          }
+          const facing = driver.p[3] || 0;
+          p[0] = Math.round((driver.p[0] + Math.sin(facing) * 0.72) * 100) / 100;
+          p[1] = driver.p[1];
+          p[2] = Math.round((driver.p[2] + Math.cos(facing) * 0.72) * 100) / 100;
+          p[3] = facing;
+          p[4] = driver.p[4];
+          p[6] = driver.id;
+          p[7] = driver.p[7] || 0x2d6cb5;
+        } else if (s.passengerOf != null) {
+          this.releaseBikeSeats(ws, s);
+          seatReleased = true;
+        }
+        if (s.bikePassenger != null && p[5] !== 5) {
+          this.releaseBikeSeats(ws, s);
+          seatReleased = true;
+        }
         s.p = p;
-        if (now - s.savedAt > 3000) this.save(ws, s);
+        if (seatReleased || now - s.savedAt > 3000) this.save(ws, s);
         this.broadcastNear({ t: 'mv', id: s.id, p }, p, s.id);
         if (now - (s.snapAt || 0) > SNAP_MS) {
           s.snapAt = now;
@@ -502,9 +534,43 @@ export class SchoolRoom extends DurableObject {
         break;
       }
       case 'act': {
-        if (!s.profile || !['keng', 'drum'].includes(m.kind) || now - s.actAt < ACT_COOLDOWN_MS) return;
-        s.actAt = now;
+        if (!s.profile || !['keng', 'drum', 'fireworks'].includes(m.kind)) return;
+        const cooldownField = m.kind === 'fireworks' ? 'fireworksAt' : 'actAt';
+        if (now - (s[cooldownField] || 0) < ACT_COOLDOWN_MS) return;
+        s[cooldownField] = now;
         this.broadcast({ t: 'act', id: s.id, kind: m.kind }, s.id);
+        break;
+      }
+      case 'bikeSeatReq': {
+        const [driverWs, driver] = this.byId(m.driverId);
+        if (!s.profile || !driverWs || !driver?.profile || driver.id === s.id
+          || !s.p || !driver.p || driver.p[5] !== 5
+          || driver.bikePassenger != null || driver.passengerOf != null
+          || s.passengerOf != null || s.bikePassenger != null || s.p[5] === 5 || s.p[5] === 6
+          || dist(s.p, driver.p) > 4) {
+          this.tell(ws, { t: 'bikeSeatErr', msg: 'Ghế sau chưa thể sử dụng — hãy đứng sát người đang đạp xe.' });
+          return;
+        }
+        driver.bikePassenger = s.id;
+        s.passengerOf = driver.id;
+        const facing = driver.p[3] || 0;
+        s.p = [
+          Math.round((driver.p[0] + Math.sin(facing) * 0.72) * 100) / 100,
+          driver.p[1],
+          Math.round((driver.p[2] + Math.cos(facing) * 0.72) * 100) / 100,
+          facing,
+          driver.p[4],
+          6,
+          driver.id,
+          driver.p[7] || 0x2d6cb5,
+        ];
+        this.save(driverWs, driver);
+        this.save(ws, s);
+        this.broadcast({ t: 'bikeSeat', driverId: driver.id, passengerId: s.id, seated: true });
+        break;
+      }
+      case 'bikeSeatLeave': {
+        this.releaseBikeSeats(ws, s);
         break;
       }
       case 'stats': {
@@ -543,6 +609,46 @@ export class SchoolRoom extends DurableObject {
     return [null, null];
   }
 
+  releaseBikeSeats(ws, s) {
+    const releases = [];
+    if (s.passengerOf != null) {
+      const driverId = s.passengerOf;
+      const [driverWs, driver] = this.byId(driverId);
+      if (driver && driver.bikePassenger === s.id) {
+        driver.bikePassenger = null;
+        this.save(driverWs, driver);
+      }
+      s.passengerOf = null;
+      if (s.p?.[5] === 6) {
+        s.p[5] = 0;
+        s.p[4] = 0;
+        delete s.p[6];
+        delete s.p[7];
+      }
+      releases.push({ driverId, passengerId: s.id });
+    }
+    if (s.bikePassenger != null) {
+      const passengerId = s.bikePassenger;
+      const [passengerWs, passenger] = this.byId(passengerId);
+      if (passenger && passenger.passengerOf === s.id) {
+        passenger.passengerOf = null;
+        if (passenger.p?.[5] === 6) {
+          passenger.p[5] = 0;
+          passenger.p[4] = 0;
+          delete passenger.p[6];
+          delete passenger.p[7];
+        }
+        this.save(passengerWs, passenger);
+      }
+      s.bikePassenger = null;
+      releases.push({ driverId: s.id, passengerId });
+    }
+    if (releases.length) {
+      this.save(ws, s);
+      for (const release of releases) this.broadcast({ t: 'bikeSeat', ...release, seated: false });
+    }
+  }
+
   tell(ws, msg) {
     try { ws.send(JSON.stringify(msg)); } catch { /* socket đang đóng */ }
   }
@@ -562,6 +668,7 @@ export class SchoolRoom extends DurableObject {
   leave(ws) {
     const s = this.get(ws);
     if (s.left) return; // đã rời (quét ma rồi webSocketClose gọi lại)
+    this.releaseBikeSeats(ws, s);
     s.left = true;
     try { ws.serializeAttachment(s); } catch { /* socket đã đóng */ }
     this.endTalk(null, s);

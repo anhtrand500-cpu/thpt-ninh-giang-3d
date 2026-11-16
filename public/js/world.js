@@ -96,6 +96,7 @@ export function buildWorld(scene) {
     collectibles: [],
     rects: [],
     updaters: [],
+    lamps: [],
     classroomDoors: [],
     classroomRooms: [],
     ladders: [],
@@ -182,6 +183,21 @@ export function buildWorld(scene) {
   function plane(mat, F, w, h, x, y, z, ry = 0, su = 1, sv = 1) {
     const g = uvScale(new THREE.PlaneGeometry(w, h), su, sv);
     batch.add(mat, g, F.at(x, y, z, ry));
+  }
+  function campusLamp(x, z) {
+    const metal = M(0x42484a, { metalness: 0.62, roughness: 0.4 });
+    const housing = M(0x353b3d, { metalness: 0.48, roughness: 0.42 });
+    const bulb = M(0xf4deb0, { emissive: 0xffc56b, emissiveIntensity: 0.02, roughness: 0.3 });
+    cyl(metal, WORLD, 0.1, 5.4, x, 0, z, 0.58);
+    cyl(metal, WORLD, 0.19, 0.2, x, 0, z, 0.72);
+    box(metal, WORLD, 0.95, 0.07, 0.07, x, 5.15, z);
+    box(housing, WORLD, 0.58, 0.15, 0.34, x + 0.18, 4.98, z);
+    box(bulb, WORLD, 0.48, 0.025, 0.25, x + 0.18, 4.955, z);
+    const light = new THREE.PointLight(0xffd18a, 0, 22, 2);
+    light.position.set(x + 0.18, 4.9, z);
+    scene.add(light);
+    W.lamps.push({ light, bulb, maxIntensity: 18 });
+    W.colliders.push({ minX: x - 0.22, maxX: x + 0.22, minZ: z - 0.22, maxZ: z + 0.22, top: 5.4 });
   }
   // Mặt phẳng riêng (không gộp) — dùng cho biển chữ có texture riêng.
   function sign(texture, w, h, x, y, z, ry = 0, doubleSided = false) {
@@ -758,6 +774,23 @@ export function buildWorld(scene) {
     }
     W.colliders.push({ minX: x - 0.07, maxX: x + 0.07, minZ: gz - len, maxZ: gz, top: 2.7 });
   }
+  const gateFloodMetal = M(0x454a4d, { metalness: 0.6, roughness: 0.4 });
+  const gateFloodHousing = M(0x33393c, { metalness: 0.45, roughness: 0.42 });
+  const gateFloodBulb = M(0xffe5ad, { emissive: 0xffc66b, emissiveIntensity: 0.02, roughness: 0.28 });
+  for (const s of [-1, 1]) {
+    const x = s * 11.8, z = 33.4, headX = x - s * 0.35;
+    cyl(gateFloodMetal, WORLD, 0.11, 8.8, x, 0, z, 0.55);
+    cyl(gateFloodMetal, WORLD, 0.22, 0.28, x, 0, z, 0.72);
+    box(gateFloodMetal, WORLD, 1.1, 0.08, 0.08, headX, 8.55, z);
+    box(gateFloodHousing, WORLD, 0.78, 0.34, 0.5, headX, 8.21, z);
+    box(gateFloodBulb, WORLD, 0.65, 0.025, 0.38, headX, 8.185, z);
+    const light = new THREE.SpotLight(0xffe6bc, 0, 38, Math.PI / 3, 0.45, 2);
+    light.position.set(headX, 8.16, z);
+    light.target.position.set(s * 3.2, 0.5, 35.6);
+    scene.add(light, light.target);
+    W.lamps.push({ light, bulb: gateFloodBulb, maxIntensity: 130 });
+    W.colliders.push({ minX: x - 0.24, maxX: x + 0.24, minZ: z - 0.24, maxZ: z + 0.24, top: 8.8 });
+  }
   // phòng bảo vệ nhỏ ngay phía trong cổng, bên trái lối vào (chỗ thầy Dương đứng trực)
   {
     const x0 = -9.2, x1 = -5.2, z0 = 30.9, z1 = 34.7, h = 2.9, xc = (x0 + x1) / 2, zc = (z0 + z1) / 2;
@@ -869,6 +902,12 @@ export function buildWorld(scene) {
     });
   }
 
+  // Đèn sân trường dọc lối đi và các cạnh sân.
+  for (const [x, z] of [
+    [-47, 28], [47, 28], [-47, 2], [47, 2],
+    [-47, -24], [47, -24], [-24, 18], [24, 18],
+  ]) campusLamp(x, z);
+
   // biển khẩu hiệu bên phải cổng
   for (const x of [11.2, 18.8]) box(mats.grey, WORLD, 0.14, 3.7, 0.14, x, 0, 35.6, { collide: true });
   sign(T.signTexture('KỶ CƯƠNG – TÌNH THƯƠNG – TRÁCH NHIỆM', { w: 1600, h: 220 }), 7.8, 1.05, 15, 3.15, 35.72, 0, true);
@@ -967,6 +1006,126 @@ export function buildWorld(scene) {
       blob(mats.leafDark, WORLD, x, 3.55, z, 0.45, 0.4, 0.45);
       W.colliders.push({ minX: x - 0.8, maxX: x + 0.8, minZ: z - 0.8, maxZ: z + 0.8, top: 3 });
     }
+    const floodMetal = M(0x454a4d, { metalness: 0.6, roughness: 0.4 });
+    const floodHousing = M(0x33393c, { metalness: 0.45, roughness: 0.42 });
+    const floodBulb = M(0xffe5ad, { emissive: 0xffc66b, emissiveIntensity: 0.02, roughness: 0.28 });
+    for (const s of [-1, 1]) {
+      const x = s * 12.6, z = -18.8, headX = x - s * 0.35;
+      cyl(floodMetal, WORLD, 0.11, 10.5, x, 0, z, 0.55);
+      cyl(floodMetal, WORLD, 0.22, 0.28, x, 0, z, 0.72);
+      box(floodMetal, WORLD, 1.1, 0.08, 0.08, headX, 10.25, z);
+      box(floodHousing, WORLD, 0.78, 0.34, 0.5, headX, 9.91, z);
+      box(floodBulb, WORLD, 0.65, 0.025, 0.38, headX, 9.885, z);
+      const light = new THREE.SpotLight(0xffe6bc, 0, 42, Math.PI / 2, 0.45, 2);
+      light.position.set(headX, 9.86, z);
+      light.target.position.set(s * 4.5, 1.2, -22.2);
+      scene.add(light, light.target);
+      W.lamps.push({ light, bulb: floodBulb, maxIntensity: 130 });
+      W.colliders.push({ minX: x - 0.24, maxX: x + 0.24, minZ: z - 0.24, maxZ: z + 0.24, top: 10.5 });
+    }
+    const chairRed = M(0xc62828, { roughness: 0.72 });
+    const chairLeg = M(0x42484a, { metalness: 0.48, roughness: 0.55 });
+    for (let row = 0; row < 10; row++) {
+      const z = -17.15 + row * 0.95;
+      for (let column = 0; column < 10; column++) {
+        const x = (column - 4.5) * 0.9;
+        box(chairRed, WORLD, 0.56, 0.08, 0.46, x, 0.42, z);
+        box(chairRed, WORLD, 0.56, 0.52, 0.07, x, 0.48, z + 0.195);
+        for (const dx of [-0.22, 0.22]) {
+          for (const dz of [-0.17, 0.17]) box(chairLeg, WORLD, 0.05, 0.42, 0.05, x + dx, 0, z + dz);
+        }
+        W.colliders.push({ minX: x - 0.3, maxX: x + 0.3, minZ: z - 0.27, maxZ: z + 0.27, top: 1.0 });
+      }
+    }
+    const fireX = 9.2, fireZ = -12;
+    const firePit = M(0x302a25, { roughness: 0.98 });
+    const fireStone = M(0x625e55, { roughness: 0.94, flatShading: true });
+    const firewood = M(0x38271e, { roughness: 0.96 });
+    cyl(firePit, WORLD, 2.04, 0.24, fireX, 0, fireZ, 0.9);
+    for (let i = 0; i < 9; i++) {
+      const angle = i * Math.PI * 2 / 9;
+      blob(fireStone, WORLD, fireX + Math.cos(angle) * 2.26, 0.34, fireZ + Math.sin(angle) * 2.26, 0.62, 0.4, 0.54);
+    }
+    box(firewood, WORLD, 3.5, 0.4, 0.44, fireX, 0.24, fireZ, { ry: Math.PI / 4 });
+    box(firewood, WORLD, 3.5, 0.4, 0.44, fireX, 0.24, fireZ, { ry: -Math.PI / 4 });
+    for (let i = 0; i < 6; i++) {
+      const angle = i * Math.PI / 3;
+      box(firewood, WORLD, 2.8, 0.36, 0.4,
+        fireX + Math.cos(angle) * 2.24, 0.24, fireZ + Math.sin(angle) * 2.24,
+        { ry: -angle });
+    }
+    W.colliders.push({ minX: fireX - 3.7, maxX: fireX + 3.7, minZ: fireZ - 3.7, maxZ: fireZ + 3.7, top: 1.0 });
+
+    const campfire = new THREE.Group();
+    campfire.position.set(fireX, 0, fireZ);
+    campfire.scale.setScalar(2);
+    campfire.visible = false;
+    const flameOuter = new THREE.MeshBasicMaterial({
+      color: 0xff5a12, transparent: true, opacity: 0.88, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const flameInner = new THREE.MeshBasicMaterial({
+      color: 0xffd34d, transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const flameShapes = [];
+    for (const [radius, height, x, z, phase, inner] of [
+      [0.48, 1.9, -0.28, 0, 0.2, false],
+      [0.45, 2.1, 0.28, -0.17, 1.4, false],
+      [0.42, 1.8, 0.08, 0.28, 2.8, false],
+      [0.38, 1.65, -0.4, 0.22, 4.1, false],
+      [0.37, 1.72, 0.38, 0.28, 5.2, false],
+      [0.3, 1.25, -0.1, -0.08, 0.9, true],
+      [0.28, 1.1, 0.22, 0.14, 3.3, true],
+    ]) {
+      const mesh = new THREE.Mesh(
+        new THREE.ConeGeometry(radius, height, 8),
+        inner ? flameInner : flameOuter,
+      );
+      mesh.position.set(x, height / 2 + 0.22, z);
+      campfire.add(mesh);
+      flameShapes.push({ mesh, phase });
+    }
+
+    const emberCount = 28;
+    const emberPositions = new Float32Array(emberCount * 3);
+    const emberGeometry = new THREE.BufferGeometry();
+    emberGeometry.setAttribute('position', new THREE.BufferAttribute(emberPositions, 3));
+    const embers = new THREE.Points(emberGeometry, new THREE.PointsMaterial({
+      color: 0xffa32b, size: 0.16, transparent: true, opacity: 0.9, depthWrite: false,
+    }));
+    campfire.add(embers);
+    const fireLight = new THREE.PointLight(0xff7626, 0, 28, 2);
+    fireLight.position.y = 1.2;
+    campfire.add(fireLight);
+    root.add(campfire);
+
+    W.updaters.push((elapsed, localHour) => {
+      const burning = localHour >= 19 || localHour < 6;
+      campfire.visible = burning;
+      if (!burning) return;
+
+      for (const { mesh, phase } of flameShapes) {
+        const flicker = 0.84 + Math.sin(elapsed * 9 + phase) * 0.12 + Math.sin(elapsed * 17 + phase * 1.7) * 0.06;
+        mesh.scale.set(0.88 + Math.sin(elapsed * 7 + phase) * 0.12, flicker, 0.88 + Math.cos(elapsed * 8 + phase) * 0.12);
+        mesh.rotation.z = Math.sin(elapsed * 4 + phase) * 0.12;
+      }
+      for (let i = 0; i < emberCount; i++) {
+        const progress = (elapsed * 0.42 + i / emberCount) % 1;
+        const angle = i * 2.399 + elapsed * 0.3;
+        const radius = 0.12 + progress * 0.42;
+        const p = i * 3;
+        emberPositions[p] = Math.cos(angle) * radius;
+        emberPositions[p + 1] = 0.45 + progress * 2.6;
+        emberPositions[p + 2] = Math.sin(angle) * radius;
+      }
+      emberGeometry.attributes.position.needsUpdate = true;
+      fireLight.intensity = 84 * (0.82 + Math.sin(elapsed * 11) * 0.1 + Math.sin(elapsed * 17) * 0.08);
+    });
+    W.interact.push({
+      x: fireX, z: fireZ + 1.6, r: 2.5,
+      label: 'Xem lửa trại',
+      title: 'Lửa trại buổi tối',
+      text: 'Lửa trại được thắp mỗi ngày từ 19:00 đến trước 06:00 theo giờ Việt Nam.',
+    });
     W.rects.push({ minX: -9, maxX: 9, minZ: z0, maxZ: z1 + 1.2, kind: 'stage' });
     W.interact.push({
       x: 0, z: -17.6, r: 4.5, label: 'Xem sân khấu',
@@ -1099,7 +1258,7 @@ export function buildWorld(scene) {
   for (const [x, z, t, s] of [
     [-13, -7, 'round', 0.9],
     [11, -6, 'flame', 0.95],
-    [4, -11, 'round', 0.85],
+    [14, -11, 'round', 0.85],
     [-7, 5, 'flame', 0.88],
     [15, 4, 'round', 0.88],
   ]) placeYardTree(x, z, t, s);
@@ -1247,9 +1406,14 @@ export function buildWorld(scene) {
       const lx = fieldX(x, z), lz = fieldZ(x, z);
       const lattice = M(0x9a9ea2, { metalness: 0.5 });
       batch.add(lattice, new THREE.CylinderGeometry(0.25, 0.7, 24, 4).translate(0, 12, 0), xform(lx, 0, lz, Math.PI / 4));
-      const lampHead = M(0xe8e8e8, { emissive: 0xfffbe0, emissiveIntensity: 0.15 });
+      const lampHead = M(0xe8e8e8, { emissive: 0xfffbe0, emissiveIntensity: 0.02 });
       const inwardYaw = Math.atan2(FIELD_X - lx, FIELD_Z - lz);
       batch.add(lampHead, GEO.cbox, xform(lx - Math.sign(z - 90.5) * 0.6, 24.5, lz + Math.sign(x) * 0.6, inwardYaw, -0.4).multiply(new THREE.Matrix4().makeScale(3.4, 2.2, 0.35)));
+      const floodlight = new THREE.SpotLight(0xffe6bc, 0, 90, Math.PI / 4, 0.4, 2);
+      floodlight.position.set(lx, 24.5, lz);
+      floodlight.target.position.set(FIELD_X, 0.2, FIELD_Z);
+      scene.add(floodlight, floodlight.target);
+      W.lamps.push({ light: floodlight, bulb: lampHead, maxIntensity: 110 });
     }
     // khán đài bê tông vàng, mặt bậc nâu đỏ
     const standYellow = M(0xe0b546), seats = M(0x9a5a48), stairGrey = M(0xb0aca4);

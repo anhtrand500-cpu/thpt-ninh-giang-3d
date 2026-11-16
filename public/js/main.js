@@ -7,7 +7,9 @@ import { drumSound, chimeSound, kengSound, clapSound, unlockAudio } from './soun
 import { createMultiplayer } from './multiplayer.js';
 import { createVoice } from './voice.js';
 import { toggleClassroomDoor } from './classroom.js';
-import { mountBike, dismountBike, syncBikeVisual } from './bike.js';
+import { mountBike, dismountBike, syncBikeVisual, detachBikeRider } from './bike.js';
+import { createEnvironment } from './environment.js';
+import { createFireworks } from './fireworks.js';
 import {
   tickSoccer, tickFlagCeremony, openGallery, closeGallery,
 } from './yardPlay.js';
@@ -39,6 +41,7 @@ canvas.tabIndex = 0;
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xd6e7f3, 90, 320);
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1200);
+const cloudMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xdde6ee, emissiveIntensity: 0.55, fog: false, flatShading: true });
 
 const sky = new THREE.Mesh(
   new THREE.SphereGeometry(600, 32, 16),
@@ -62,13 +65,12 @@ scene.add(sky);
 
 const clouds = new THREE.Group();
 {
-  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xdde6ee, emissiveIntensity: 0.55, fog: false, flatShading: true });
   const geo = new THREE.IcosahedronGeometry(1, 1);
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2 + (i % 3) * 0.3, r = 220 + (i % 4) * 50;
     const c = new THREE.Group();
     for (let k = 0; k < 5; k++) {
-      const m = new THREE.Mesh(geo, mat);
+      const m = new THREE.Mesh(geo, cloudMaterial);
       m.position.set((k - 2) * 9 + (k % 2) * 3, (k % 2) * 4, (k % 3) * 4);
       m.scale.set(12 + (k % 3) * 4, 6 + (k % 2) * 3, 9);
       c.add(m);
@@ -80,7 +82,8 @@ const clouds = new THREE.Group();
   scene.add(clouds);
 }
 
-scene.add(new THREE.HemisphereLight(0xdfefff, 0x7a6a4a, 1.15));
+const hemisphere = new THREE.HemisphereLight(0xdfefff, 0x7a6a4a, 1.15);
+scene.add(hemisphere);
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.7);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -88,10 +91,13 @@ Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, n
 sun.shadow.bias = -0.0008;
 sun.shadow.normalBias = 0.05;
 scene.add(sun, sun.target);
-const SUN_OFFSET = new THREE.Vector3(38, 70, 30);
 
 // ---------- world ----------
 const world = buildWorld(scene);
+const fireworks = createFireworks(scene);
+const environment = createEnvironment({
+  scene, camera, sky, clouds, cloudMaterial, hemisphere, sun, renderer, status: $('weatherStatus'), lamps: world.lamps,
+});
 let collected = 0;
 const TOTAL = world.collectibles.length;
 $('total').textContent = TOTAL;
@@ -108,17 +114,25 @@ const player = {
   vel: new THREE.Vector3(),
   feetY: 0, vy: 0, grounded: true, facing: Math.PI,
   char: null,
-  pose: null, // 'sit' | 'lie' | 'dance'
+  pose: null, // 'sit' | 'lie' | 'dance' | 'salute'
   onBike: false,
   bike: null,
+  passengerOf: null,
+  passengerId: null,
 };
-const POSE_LABEL = { sit: 'Ngồi', lie: 'Nằm', dance: 'Nhảy múa' };
-const POSE_CYCLE = ['sit', 'lie', 'dance'];
+let pendingBikeDriverId = null;
+let pendingBikeSeatTimer = 0;
+const POSE_LABEL = { sit: 'Ngồi', lie: 'Nằm', dance: 'Nhảy múa', salute: 'Chào cờ' };
+const POSE_CYCLE = ['sit', 'lie', 'dance', 'salute'];
 const POSE_VISUAL_DROP = { sit: 0.54, lie: 0.2 };
 let playerClapT = 0;
 let lastClapAt = 0;
 
 function toggleBikeAtShed() {
+  if (player.passengerOf != null) {
+    toast('Bấm B để xuống xe trước khi lấy xe đạp.', 2400);
+    return;
+  }
   const shedX = 41, shedZ = 28.5, shedR = 5.5;
   const atShed = Math.hypot(player.pos.x - shedX, player.pos.z - shedZ) < shedR + 1;
   if (player.onBike) {
@@ -126,6 +140,7 @@ function toggleBikeAtShed() {
       toast('Về nhà xe (bên phải sân) để trả xe, hoặc bấm B để xuống xe tạm.', 3200);
       return;
     }
+    mp.leaveBikeSeat();
     dismountBike(player, scene, player.char.root, player.feetY, player.facing);
     toast('Đã trả xe vào nhà xe.', 2400);
     return;
@@ -142,9 +157,30 @@ function toggleBikeAtShed() {
 }
 
 function dismountBikeAnywhere() {
+  if (player.passengerOf != null) {
+    leaveBikePassenger();
+    return;
+  }
   if (!player.onBike) return;
+  mp.leaveBikeSeat();
   dismountBike(player, scene, player.char.root, player.feetY, player.facing);
   toast('Đã xuống xe.', 1800);
+}
+
+function leaveBikePassenger(notify = true) {
+  if (player.passengerOf == null) return false;
+  const driverId = player.passengerOf;
+  if (notify) mp.leaveBikeSeat();
+  if (player.char?.root.parent !== scene) {
+    detachBikeRider(scene, player.char.root, new THREE.Vector3(player.pos.x, player.feetY, player.pos.z), player.facing);
+  }
+  player.passengerOf = null;
+  player.vel.set(0, 0, 0);
+  player.vy = 0;
+  player.grounded = true;
+  if (pendingBikeDriverId === driverId) pendingBikeDriverId = null;
+  toast('Đã xuống ghế sau.', 1800);
+  return true;
 }
 
 function triggerClap() {
@@ -292,6 +328,7 @@ function releaseGameFocus() {
   if (ae?.blur && ae !== document.body) ae.blur();
 }
 
+let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
   if (!started || menuOpen || formFocusBlocksKeys()) return;
   if (e.code === 'KeyE' || e.code === 'Enter') { if (!e.repeat) use(); e.preventDefault(); return; }
@@ -299,11 +336,23 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM') { mapOn = !mapOn; $('minimap').hidden = !mapOn; return; }
   if (e.code === 'KeyT' && started && !menuOpen) { openChat(); e.preventDefault(); return; }
   if (e.code === 'KeyC' && started && !menuOpen) { openClass(); e.preventDefault(); return; }
+  if (e.code === 'KeyP' && !e.repeat) {
+    const now = performance.now();
+    if (now - lastFireworksAt >= 5000) {
+      lastFireworksAt = now;
+      fireworks.launch();
+      mp.act('fireworks');
+      toast('Pháo hoa trên sân khấu!', 1800);
+    }
+    e.preventDefault();
+    return;
+  }
   if (e.code === 'Space') { queueJump(); e.preventDefault(); return; }
   if (e.code === 'Digit1' && !e.repeat) { setPlayerPose('sit'); e.preventDefault(); return; }
   if (e.code === 'Digit2' && !e.repeat) { setPlayerPose('lie'); e.preventDefault(); return; }
   if (e.code === 'Digit3' && !e.repeat) { setPlayerPose('dance'); e.preventDefault(); return; }
   if ((e.code === 'Digit4' || e.code === 'KeyV') && !e.repeat) { triggerClap(); e.preventDefault(); return; }
+  if (e.code === 'Digit5' && !e.repeat) { setPlayerPose('salute'); e.preventDefault(); return; }
   if (e.code === 'KeyB' && !e.repeat) { dismountBikeAnywhere(); e.preventDefault(); return; }
   if (e.code === 'Digit0' && !e.repeat) { clearPlayerPose(); e.preventDefault(); return; }
   keys.add(e.code);
@@ -413,6 +462,7 @@ addEventListener('wheel', e => {
 }, { passive: false });
 $('btnUse').addEventListener('pointerdown', e => { e.preventDefault(); use(); });
 $('btnJump').addEventListener('pointerdown', e => { e.preventDefault(); queueJump(); unlockAudio(); });
+$('btnDismount').addEventListener('pointerdown', e => { e.preventDefault(); dismountBikeAnywhere(); });
 const mbMap = $('mbMap');
 if (mbMap) mbMap.addEventListener('click', () => { mapOn = !mapOn; $('minimap').hidden = !mapOn; });
 const mbPose = $('mbPose');
@@ -570,11 +620,40 @@ const mp = createMultiplayer({
     },
     onAct(m) {
       const r = mp.remotes.get(m.id);
+      if (m.kind === 'fireworks') {
+        fireworks.launch();
+        return;
+      }
       if (m.kind === 'clap' && r) {
         r.clapT = 2.2;
         return;
       }
       remoteBell(m.kind);
+    },
+    onBikeSeat(m) {
+      if (pendingBikeDriverId === m.driverId) {
+        pendingBikeDriverId = null;
+        clearTimeout(pendingBikeSeatTimer);
+      }
+      if (m.driverId === mp.myId) {
+        player.passengerId = m.seated ? m.passengerId : null;
+        toast(m.seated ? 'Có bạn đang ngồi ghế sau xe của bạn.' : 'Bạn ngồi sau đã xuống xe.', 2200);
+      }
+      if (m.passengerId === mp.myId) {
+        if (m.seated) {
+          player.passengerOf = m.driverId;
+          player.pose = null;
+          player.vel.set(0, 0, 0);
+          player.vy = 0;
+        } else if (player.passengerOf === m.driverId) {
+          leaveBikePassenger(false);
+        }
+      }
+    },
+    onBikeSeatError(msg) {
+      pendingBikeDriverId = null;
+      clearTimeout(pendingBikeSeatTimer);
+      toast(msg || 'Không thể ngồi ghế sau lúc này.', 3000);
     },
     onClassJoined(cls, history, members, meta = {}) {
       classUnread = 0;
@@ -985,9 +1064,18 @@ function nearest() {
       bd = d - (n.vendor ? 0.75 : 1);
     }
   }
-  if (!talk) for (const r of mp.remotes.values()) {
+  if (!talk && player.passengerOf == null && !player.onBike) for (const r of mp.remotes.values()) {
     const d = Math.hypot(r.pos.x - player.pos.x, r.pos.z - player.pos.z);
-    if (r.seeded && d < 2.8 && d - 1.2 < bd) { best = { label: `Mời ${remoteName(r)} trò chuyện`, remote: r }; bd = d - 1.2; }
+    if (!r.seeded || d >= 2.8) continue;
+    const hasPassenger = r.passengerOf != null || [...mp.remotes.values()].some(other => other.passengerOf === r.id);
+    if (r.pose === 'bike' && !hasPassenger && d - 1.2 < bd) {
+      const pending = pendingBikeDriverId === r.id;
+      best = { label: pending ? `Đang xin ngồi sau xe ${remoteName(r)}…` : `Ngồi sau xe ${remoteName(r)} (E)`, passengerDriver: r };
+      bd = d - 1.2;
+    } else if (r.pose !== 'bikePassenger' && d - 1.2 < bd) {
+      best = { label: `Mời ${remoteName(r)} trò chuyện`, remote: r };
+      bd = d - 1.2;
+    }
   }
   return best;
 }
@@ -1010,6 +1098,22 @@ function use() {
   if (current.action === 'classroom-door') {
     const opened = toggleClassroomDoor(world, current.doorId);
     toast(opened ? 'Cửa đã mở — bước vào lớp!' : 'Đã đóng cửa lớp.', 2400);
+    return;
+  }
+  if (current.passengerDriver) {
+    if (pendingBikeDriverId === current.passengerDriver.id) {
+      toast('Đang chờ người lái xác nhận ghế sau…', 2200);
+    } else if (mp.requestBikeSeat(current.passengerDriver.id)) {
+      const driverId = current.passengerDriver.id;
+      pendingBikeDriverId = driverId;
+      clearTimeout(pendingBikeSeatTimer);
+      pendingBikeSeatTimer = setTimeout(() => {
+        if (pendingBikeDriverId === driverId) pendingBikeDriverId = null;
+      }, 3500);
+      toast(`Đang lên ghế sau xe ${remoteName(current.passengerDriver)}…`, 2400);
+    } else {
+      toast('Chưa kết nối máy chủ', 3000);
+    }
     return;
   }
   if (current.remote) {
@@ -1180,6 +1284,29 @@ function climbLadder(dt, ox, oz) {
 }
 
 function updatePlayer(dt) {
+  if (player.passengerOf != null) {
+    const driver = mp.remotes.get(player.passengerOf);
+    if (!driver?.seeded || driver.pose !== 'bike') {
+      leaveBikePassenger();
+      return;
+    }
+    player.pos.set(
+      driver.pos.x + Math.sin(driver.facing) * 0.72,
+      0,
+      driver.pos.z + Math.cos(driver.facing) * 0.72,
+    );
+    player.feetY = driver.feetY;
+    player.facing = driver.facing;
+    player.vel.set(0, 0, 0);
+    player.vy = 0;
+    player.grounded = true;
+    if (player.char.root.parent === scene) {
+      player.char.root.position.set(player.pos.x, player.feetY, player.pos.z);
+      player.char.root.rotation.y = player.facing;
+    }
+    player.char.update(dt, Math.max(driver.speed, 0.35), false, 0, 'bike');
+    return;
+  }
   let ix = 0, iz = 0;
   if (keys.has('KeyW') || keys.has('ArrowUp')) iz += 1;
   if (keys.has('KeyS') || keys.has('ArrowDown')) iz -= 1;
@@ -1213,7 +1340,7 @@ function updatePlayer(dt) {
     jumpQueued = false;
   }
   if (climbLadder(dt, ox, oz)) {
-    if (player.onBike) dismountBike(player, scene, player.char.root, player.feetY, player.facing);
+    if (player.onBike) dismountBikeAnywhere();
     return;
   }
   const g = col.groundAt(p.x, p.z, player.feetY);
@@ -1385,19 +1512,18 @@ function frame() {
     tickFlagCeremony({ player, npcs, toast, drumSound, mp }, dt);
     try { mp.tick(dt); } catch (e) { console.error(e); }
   }
-  for (const u of world.updaters) u(t);
+  const localHour = environment.getLocalHour();
+  for (const u of world.updaters) u(t, localHour);
+  fireworks.update(t);
   const shot = SHOTS[params.get('shot')] || CAM;
   if (shot) {
     camera.position.set(...shot[0]);
     camera.lookAt(...shot[1]);
   } else updateCamera(dt);
 
-  const sx = Math.round(player.pos.x / 4) * 4, sz = Math.round(player.pos.z / 4) * 4;
-  sun.target.position.set(shot ? 0 : sx, 0, shot ? 5 : sz);
-  sun.position.copy(sun.target.position).add(SUN_OFFSET);
-  sky.position.copy(camera.position);
-  clouds.position.set(camera.position.x, 0, camera.position.z);
-  clouds.rotation.y = t * 0.004;
+  const sx = shot ? 0 : Math.round(player.pos.x / 4) * 4;
+  const sz = shot ? 5 : Math.round(player.pos.z / 4) * 4;
+  environment.update(dt, t, sx, sz);
 
   if (!$('intro').hidden) profileForm.tick(dt);
   if (started) {
