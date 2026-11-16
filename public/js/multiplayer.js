@@ -4,9 +4,9 @@ import { createCharacter, lookFromProfile, nameTag, speechBubble } from './chara
 import { tagLines, profileClassCode } from './profile.js';
 import { attachBikeRider, createBikeVisual, detachBikeRider, syncBikeVisual } from './bike.js';
 
-const SEND_MS = 130;
-const SEND_IDLE_MS = 2800;
-const PING_MS = 20_000;
+const SEND_MS = 250;
+const SEND_IDLE_MS = 5000;
+const PING_MS = 30000;
 const RECONNECT_MS = 6_000;
 const VIEW_M = 72;
 const VIEW_SHOW_M = 78;
