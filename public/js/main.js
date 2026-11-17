@@ -261,7 +261,7 @@ const NPC_DEFS = [
   { name: 'Bác bảo vệ', kind: 'boy', shirt: 0xa9d4ef, pants: 0x2e3328, cap: 0x4f5c3e, x: 5.2, z: 35, staff: true, gatePatrol: true, homeX0: -14, homeX1: 16, homeZ0: 30, homeZ1: 42, face: -Math.PI / 2,
     lines: ['Xuống xe dắt bộ vào nhé, trong sân trường không được đi xe!', 'Xe để vào nhà xe bên phải, khoá cẩn thận vào các cháu.', 'Đi muộn là bác đóng cổng đấy nhé!', 'Quán ngoài cổng bán được, nhưng đừng ăn quá tại chỗ — rác vứt vào thùng nhé.'],
     greet: 'Xuống xe dắt bộ vào nhé, trong sân trường không được đi xe!' },
-  { name: 'Cô Hằng', kind: 'girl', x: -15, z: 38.08, static: true, face: 0, vendor: true,
+  { name: 'Cô Hằng', kind: 'girl', x: -15, z: 38.08, static: true, face: 0, vendor: true, supportQr: true,
     menu: ['• Bánh rán mặn: 2k/cái · 5 cái 10k', '• Trà tắc / sữa đậu: 8k', '• Xiên que: 10–15k'],
     lines: ['Bánh rán mặn nóng hổi nè, 5 cái 10k!', 'Trà tắc, sữa đậu — uống nhanh rồi vào trường kẻo trễ.', 'Hay mua xiên que về cho bọn lớp 10, cô chiết cho.'],
     greet: 'Bánh rán vừa rán xong đây! Có muốn thử không?' },
@@ -269,7 +269,7 @@ const NPC_DEFS = [
     menu: ['• Trà sữa trân châu: 15k · topping +3k', '• Bánh tráng nướng: 12k', '• Trứng cút lộn: 6k'],
     lines: ['Trà sữa trân châu 15k — trà vỉa hè ngon nhất dòng!', 'Có bánh tráng nướng, trứng cút lộn xanh.', 'Chiều vắng khách thì chú dọn sớm, đừng trông mãi nhé.'],
     greet: 'Trà sữa một ly không em? Thêm topping 3k.' },
-  { name: 'Bà Năm', kind: 'aodai', x: 11, z: 38.06, static: true, face: 0, vendor: true,
+  { name: 'Bà Năm', kind: 'aodai', x: 11, z: 38.06, static: true, face: 0, vendor: true, supportQr: true,
     menu: ['• Kem que / sữa chua hộp: 8–12k', '• Xiên que, nem chua: 10k', '• Kẹo kéo / bánh gạo: 5k'],
     lines: ['Kem que, kẹo kéo, sữa chua hộp — bọn học sinh hay mua nhất.', 'Bà có xiên que: thịt xiên, nem chua rán.', 'Trời lạnh bà bán khoai lang nướng luôn.'],
     greet: 'Ăn vặt gì không cháu? Kẹo que còn nhiều.' },
@@ -634,10 +634,11 @@ function setupBackgroundMusic() {
 }
 const startBackgroundMusic = setupBackgroundMusic();
 
-function showDialog(title, text, kicker = '') {
+function showDialog(title, text, kicker = '', showDonation = false) {
   $('dlgKicker').textContent = kicker;
   $('dlgTitle').textContent = title;
   $('dlgText').textContent = text;
+  $('dlgDonation').hidden = !showDonation;
   $('dialog').hidden = false;
   dialogOpen = true;
 }
@@ -1638,7 +1639,7 @@ function use() {
       ? `${line}\n\n— Bảng giá —\n${n.menu.join('\n')}\n\n(Ẩm thực ảo — chúc bạn ngon miệng khi về thăm trường!)`
       : line;
     npcSay(n, line);
-    showDialog(n.name, text, n.vendor ? 'Quán vỉa hè · trước cổng' : 'Trò chuyện');
+    showDialog(n.name, text, n.vendor ? 'Quán vỉa hè · trước cổng' : 'Trò chuyện', n.supportQr);
     if (n.vendor) {
       unlockAudio();
       chimeSound();

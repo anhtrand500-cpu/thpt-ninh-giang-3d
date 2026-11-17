@@ -53,6 +53,9 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 
 #dialog p { white-space: pre-line; line-height: 1.55; margin: 0 0 16px; }
 #dialog button { float: right; border: 0; background: #8e2a22; color: #fff; font-size: 14px; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
 #dialog button kbd { margin-left: 6px; }
+#dialog .dialog-donation { clear: both; margin: 18px auto 14px; text-align: center; }
+#dialog .dialog-donation p { margin: 0 0 10px; color: #8e2a22; font-size: 14px; font-weight: 700; }
+#dialog .dialog-donation img { display: block; width: min(320px, 100%); max-height: 50vh; object-fit: contain; margin: 0 auto; border-radius: 8px; background: #fff; }
 
 #galleryView, #leaderboard { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.38); z-index: 30; }
 #galleryView .gal, #leaderboard .lb { width: min(560px, 94vw); max-height: 88vh; overflow: auto; background: #fffaf0; border-radius: 16px; padding: 22px 24px 18px; border-top: 6px solid #c62828; box-shadow: 0 18px 50px rgba(0,0,0,0.3); position: relative; }
