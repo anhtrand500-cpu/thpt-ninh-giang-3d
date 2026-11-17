@@ -1149,23 +1149,16 @@ export function buildWorld(scene) {
   }
   // băng rôn trên dãy nhà bên phải (theo ảnh buổi ngoại khoá)
   sign(T.signTexture('HIỀN TÀI LÀ NGUYÊN KHÍ QUỐC GIA', { w: 2000, h: 150, bg: '#c62828', fg: '#ffffff', border: '#ffd54a' }), 16, 1.2, 50.25, 4.35, -8, -Math.PI / 2);
-  // ---------- bảng vàng ----------
+  // ---------- bảng Em ham học ----------
   for (const x of [-21.4, -18.6]) box(mats.grey, WORLD, 0.15, 3.8, 0.15, x, 0, -28.6, { collide: true });
   box(mats.trim, WORLD, 2.6, 3.2, 0.15, -20, 0.5, -28.5, { collide: true });
-  sign(T.honorBoardTexture('BẢNG VÀNG TRUYỀN THỐNG', [
-    'Thành lập 1965 – Cấp 3 Ninh Giang',
-    // '19/9/1970: Trường phổ thông cấp 3 Ninh Giang',
-    // 'Huân chương Lao động hạng Ba (1996)',
-    // 'Huân chương Lao động hạng Nhì (2006)',
-    // 'Huân chương Lao động hạng Nhất (2011)',
-    // 'Trường chuẩn Quốc gia mức độ 2 (2020)',
-    '“Ngôi trường của những thủ khoa”',
+  sign(T.honorBoardTexture('EM HAM HỌC', [
+    'Math Game · Tích phân',
+    '15 câu hỏi · Chơi cùng 40 bạn',
   ]), 2.3, 2.85, -20, 2.1, -28.4);
   W.interact.push({
-    x: -20, z: -27, r: 2.8, label: 'Đọc bảng vàng',
-    title: 'Bảng vàng truyền thống',
-    text:'• 1965: thành lập trường Cấp 3 Ninh Giang.'
-    // text: '• 1965: thành lập trường Cấp 3 Ninh Giang.\n• 19/9/1970: mang tên Trường phổ thông cấp 3 Ninh Giang (QĐ 317/QĐ của UBND TP Hải Phòng), sau đổi thành Trường THPT Ninh Giang.\n• Huân chương Lao động hạng Ba (1996), hạng Nhì (2006), hạng Nhất (2011).\n• Đạt chuẩn Quốc gia mức độ 2 năm 2020.\n• 2006–2010: 5 năm liền có thủ khoa đại học — “Ngôi trường của những thủ khoa”.\n\nNguồn: website thptninhgiang.haiphong.edu.vn và báo Thương hiệu & Công luận.',
+    x: -20, z: -27, r: 2.8, label: 'Chơi Math Game',
+    action: 'math-game',
   });
 
   W.interact.push({

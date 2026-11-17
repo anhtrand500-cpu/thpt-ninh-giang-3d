@@ -40,6 +40,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
   let pingTimer = null;
   let reconnectTimer = null;
   let reconnectAttempts = 0;
+  let reconnectEnabled = true;
   let noteSent = false;
   let myId = null;
   const remotes = new Map();
@@ -226,6 +227,18 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
         }
         callbacks.onClassErr?.(m.msg);
         break;
+      case 'mathState':
+        callbacks.onMathGame?.(m.state);
+        break;
+      case 'mathProgress':
+        callbacks.onMathGameProgress?.(m);
+        break;
+      case 'mathAnswerAck':
+        callbacks.onMathGameAnswer?.(m.choice);
+        break;
+      case 'mathError':
+        callbacks.onMathGameError?.(m.msg);
+        break;
       case 'join': {
         const r = ensureRemote(m.id, m.profile);
         applyPos(r, m.p);
@@ -348,6 +361,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
   }
 
   function connect() {
+    reconnectEnabled = true;
     const url = wsURL();
     if (!url) {
       setStatus('solo');
@@ -355,32 +369,40 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     }
     clearTimeout(reconnectTimer);
     if (ws) {
+      const previous = ws;
+      ws = null;
       try {
-        ws.close();
+        previous.close();
       } catch {
         /* ignore */
       }
     }
     setStatus('connecting');
-    ws = new WebSocket(url);
-    ws.onopen = () => {
+    const socket = new WebSocket(url);
+    ws = socket;
+    socket.onopen = () => {
+      if (ws !== socket) return;
       reconnectAttempts = 0;
       noteSent = false;
       sendHello();
       clearInterval(pingTimer);
       pingTimer = setInterval(() => {
         try {
-          ws?.send('ping');
+          socket.send('ping');
         } catch {
           /* ignore */
         }
       }, PING_MS);
     };
-    ws.onmessage = e => handleMessage(e.data);
-    ws.onclose = () => {
+    socket.onmessage = e => {
+      if (ws === socket) handleMessage(e.data);
+    };
+    socket.onclose = () => {
+      if (ws !== socket) return;
       connected = false;
       clearInterval(pingTimer);
       setStatus('offline');
+      if (!reconnectEnabled) return;
       reconnectAttempts += 1;
       if (reconnectAttempts === 2) {
         callbacks.onError?.('Chưa vào được sân chung (máy chủ Cloudflare có thể hết hạn mức hôm nay). Vẫn chơi solo; thử lại sau hoặc npm run dev ở máy bạn.');
@@ -389,7 +411,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
       const delay = Math.min(45_000, RECONNECT_MS * Math.pow(1.4, Math.min(reconnectAttempts, 6)));
       reconnectTimer = setTimeout(connect, delay);
     };
-    ws.onerror = () => {};
+    socket.onerror = () => {};
   }
 
   if (typeof document !== 'undefined') {
@@ -485,13 +507,16 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
   return {
     connect,
     disconnect() {
+      reconnectEnabled = false;
       clearTimeout(reconnectTimer);
       clearInterval(pingTimer);
+      connected = false;
       try {
         ws?.close();
       } catch {
         /* ignore */
       }
+      setStatus('offline');
     },
     hello: sendHello,
     chat(text) {
@@ -543,6 +568,18 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     },
     classMsg(text) {
       return send({ t: 'classMsg', text });
+    },
+    mathJoin() {
+      return send({ t: 'mathJoin' });
+    },
+    mathStart() {
+      return send({ t: 'mathStart' });
+    },
+    mathAnswer(choice) {
+      return send({ t: 'mathAnswer', choice });
+    },
+    mathRematch() {
+      return send({ t: 'mathRematch' });
     },
     get classInfo() {
       return classInfo;

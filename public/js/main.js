@@ -5,6 +5,7 @@ import { setupProfileForm, loadProfile, DEFAULT_PROFILE, tagLines, isProfileComp
 import { Collision } from './physics.js';
 import { drumSound, chimeSound, kengSound, clapSound, unlockAudio } from './sound.js';
 import { createMultiplayer } from './multiplayer.js';
+import { INTEGRAL_QUESTIONS, MATH_GAME_MAX_PLAYERS } from './mathGameData.js';
 import { createVoice } from './voice.js';
 import { toggleClassroomDoor } from './classroom.js';
 import { mountBike, dismountBike, syncBikeVisual, detachBikeRider } from './bike.js';
@@ -341,13 +342,18 @@ let overviewOn = false, overviewBlend = 0;
 const defaultCameraFov = camera.fov;
 const overviewPosition = new THREE.Vector3(52, 96, 98);
 const overviewTarget = new THREE.Vector3(0, 0, -4);
+const overviewRadius = Math.hypot(overviewPosition.x - overviewTarget.x, overviewPosition.z - overviewTarget.z);
+let overviewAngle = Math.atan2(overviewPosition.x - overviewTarget.x, overviewPosition.z - overviewTarget.z);
+const overviewCameraPosition = new THREE.Vector3();
+const overviewRotationSpeed = 2 * Math.PI / 75;
 const followCameraPosition = new THREE.Vector3();
 const blendedCameraTarget = new THREE.Vector3();
-let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false;
+let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, mathOpen = false;
 let galleryOpen = false, boardOpen = false;
+let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
 
 function uiBlocksGame() {
-  return menuOpen || bookOpen || chatOpen || classOpen || dialogOpen || galleryOpen || boardOpen
+  return menuOpen || bookOpen || chatOpen || classOpen || mathOpen || dialogOpen || galleryOpen || boardOpen
     || (!$('intro').hidden && !started);
 }
 function formFocusBlocksKeys() {
@@ -371,7 +377,7 @@ function toggleOverview() {
   button.title = overviewOn ? 'Trở về góc nhìn nhân vật (phím V)' : 'Xem toàn bộ khuôn viên (phím V)';
   toast(
     overviewOn
-      ? 'Đang xem toàn cảnh từ trên cao — bấm V hoặc nút Toàn cảnh để trở về.'
+      ? 'Đang xem toàn cảnh từ trên cao — camera tự động xoay quanh trường; bấm V hoặc nút Trở về để quay lại.'
       : 'Đã trở về góc nhìn nhân vật.',
     3000,
   );
@@ -381,8 +387,9 @@ function toggleOverview() {
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
   if (!started || menuOpen || formFocusBlocksKeys()) return;
+  if (mathOpen && e.code !== 'KeyE' && e.code !== 'Escape') return;
   if (e.code === 'KeyE' || e.code === 'Enter') { if (!e.repeat) use(); e.preventDefault(); return; }
-  if (e.code === 'Escape') { closeDialog(); return; }
+  if (e.code === 'Escape') { if (mathOpen) closeMathGame(); else closeDialog(); return; }
   if (e.code === 'KeyM') { mapOn = !mapOn; $('minimap').hidden = !mapOn; return; }
   if (e.code === 'KeyT' && started && !menuOpen) { openChat(); e.preventDefault(); return; }
   if (e.code === 'KeyC' && started && !menuOpen) { openClass(); e.preventDefault(); return; }
@@ -686,7 +693,35 @@ function closeChat() {
 }
 let netHintShown = false;
 let lastOnlineN = 1;
+const IDLE_DISCONNECT_MS = 3 * 60_000;
+let netStatus = 'offline';
+let idleTimer = null;
+let idleDisconnected = false;
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  if (!started || netStatus === 'solo' || idleDisconnected) return;
+  idleTimer = setTimeout(() => {
+    if (!started || netStatus === 'solo') return;
+    idleDisconnected = true;
+    $('afkNotice').hidden = false;
+    mp.disconnect();
+  }, IDLE_DISCONNECT_MS);
+}
+
+function recordUserActivity(e) {
+  if (!started || idleDisconnected) return;
+  if (e.type === 'pointermove' && !e.buttons && e.pointerType !== 'touch') return;
+  resetIdleTimer();
+}
+
+document.addEventListener('pointerdown', recordUserActivity);
+document.addEventListener('pointermove', recordUserActivity);
+document.addEventListener('keydown', recordUserActivity);
+document.addEventListener('wheel', recordUserActivity);
+
 function setNetStatus(s) {
+  netStatus = s;
   const dot = $('netDot');
   dot.className = 'dot ' + (s === 'online' ? 'on' : s === 'connecting' ? 'wait' : s === 'solo' ? 'solo' : 'off');
   const box = dot.closest('.online');
@@ -698,6 +733,21 @@ function setNetStatus(s) {
   }
   if (s === 'solo') $('onlineN').textContent = '1';
   else if (s === 'offline') $('onlineN').textContent = '!';
+  if (idleDisconnected) {
+    const button = $('afkReconnect');
+    button.disabled = s === 'connecting';
+    button.textContent = s === 'connecting' ? 'Đang kết nối…' : 'Kết nối lại ngay';
+    if (s === 'online') {
+      idleDisconnected = false;
+      $('afkNotice').hidden = true;
+      resetIdleTimer();
+    }
+  }
+  if (s === 'online' && mathOpen && !mp.mathJoin()) {
+    $('mathMessage').textContent = 'Đang nối lại phòng Math Game…';
+  } else if (s === 'offline' && mathOpen) {
+    $('mathMessage').textContent = 'Mất kết nối phòng chơi — đang thử kết nối lại.';
+  }
 }
 function visibleRemotes() {
   let n = 0;
@@ -740,6 +790,30 @@ const mp = createMultiplayer({
   callbacks: {
     onStatus: setNetStatus,
     onOnline: setOnline,
+    onMathGame: renderMathGame,
+    onMathGameProgress(progress) {
+      if (!mathState) return;
+      mathState.answerCount = progress.answerCount;
+      mathState.playerCount = progress.playerCount;
+      if (mathOpen) {
+        $('mathPlayerCount').textContent = `${progress.playerCount}/${mathState.capacity} người`;
+        $('mathMessage').textContent = `Đã trả lời ${progress.answerCount}/${progress.playerCount} người chơi.`;
+      }
+    },
+    onMathGameAnswer(choice) {
+      if (!mathState) return;
+      mathState.myChoice = choice;
+      mathPendingChoice = null;
+      updateMathChoiceControls(mathState);
+      if (mathOpen) $('mathAnswerCount').textContent = 'Đã ghi nhận câu trả lời của bạn.';
+    },
+    onMathGameError(msg) {
+      mathPendingChoice = null;
+      if (mathOpen) {
+        $('mathMessage').textContent = msg;
+        if (mathState) updateMathChoiceControls(mathState);
+      }
+    },
     onNotes(list) {
       renderGuestbook(list);
       pushStats();
@@ -846,6 +920,238 @@ const mp = createMultiplayer({
       toast(`${who} vừa vào sân trường`, 2200);
     },
   },
+});
+
+function ensureMathJax() {
+  if (window.MathJax?.typesetPromise) {
+    mathJaxReady = true;
+    return Promise.resolve(window.MathJax);
+  }
+  if (!mathJaxPromise) {
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']] },
+      startup: { typeset: false },
+    };
+    mathJaxPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js';
+      script.async = true;
+      script.onload = () => {
+        const mathJax = window.MathJax;
+        Promise.resolve(mathJax.startup?.promise).then(() => {
+          if (typeof mathJax.typesetPromise !== 'function') {
+            reject(new Error('MathJax did not initialize'));
+          } else {
+            mathJaxReady = true;
+            resolve(mathJax);
+          }
+        }, reject);
+      };
+      script.onerror = () => reject(new Error('MathJax could not be loaded'));
+      document.head.appendChild(script);
+    }).catch(error => {
+      mathJaxPromise = null;
+      throw error;
+    });
+  }
+  return mathJaxPromise;
+}
+
+async function typesetMath() {
+  const status = $('mathFormulaStatus');
+  status.hidden = false;
+  status.textContent = 'Đang tải công thức toán…';
+  try {
+    const mathJax = await ensureMathJax();
+    const content = $('mathQuestionView');
+    await mathJax.typesetPromise([content]);
+    status.hidden = true;
+  } catch (error) {
+    console.error('Math Game formula rendering failed:', error);
+    status.textContent = 'Không tải được bộ hiển thị công thức. Kiểm tra kết nối mạng rồi mở lại trò chơi.';
+  }
+}
+
+function showMathQuestion(state) {
+  const question = INTEGRAL_QUESTIONS[state.questionIndex];
+  if (!question) return;
+  window.MathJax?.typesetClear?.([$('mathQuestionView')]);
+  $('mathLevel').textContent = question.level;
+  $('mathPrompt').textContent = question.prompt;
+  const choices = $('mathChoices');
+  choices.replaceChildren();
+  question.choices.forEach((text, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'math-choice';
+    button.dataset.choice = String(index);
+    const letter = document.createElement('span');
+    letter.className = 'math-choice-letter';
+    letter.textContent = String.fromCharCode(65 + index);
+    const formula = document.createElement('span');
+    formula.textContent = text;
+    button.append(letter, formula);
+    button.addEventListener('click', () => submitMathAnswer(index));
+    choices.appendChild(button);
+  });
+  const revealed = state.status === 'reveal';
+  const explanation = $('mathExplanation');
+  explanation.hidden = !revealed;
+  if (revealed) {
+    explanation.textContent = `Đáp án: ${question.choices[state.correctIndex]}. ${question.explanation}`;
+  }
+  updateMathChoiceControls(state);
+  typesetMath();
+}
+
+function updateMathChoiceControls(state) {
+  const revealed = state.status === 'reveal';
+  const expired = state.status === 'question' && Date.now() + (state.serverOffset || 0) >= state.deadline;
+  for (const button of $('mathChoices').querySelectorAll('.math-choice')) {
+    const index = Number(button.dataset.choice);
+    const selected = state.myChoice === index || mathPendingChoice === index;
+    button.disabled = revealed || state.myChoice != null || mathPendingChoice != null || expired;
+    button.classList.toggle('selected', selected);
+    button.classList.toggle('correct', revealed && index === state.correctIndex);
+    button.classList.toggle('incorrect', revealed && selected && index !== state.correctIndex);
+  }
+}
+
+function updateMathTimer() {
+  if (!mathOpen || mathState?.status !== 'question') return;
+  const remaining = Math.max(0, Math.ceil((mathState.deadline - Date.now() - (mathState.serverOffset || 0)) / 1000));
+  const timer = $('mathTimer');
+  timer.textContent = `${remaining} giây`;
+  timer.classList.toggle('urgent', remaining <= 5);
+  if (!remaining) {
+    $('mathAnswerCount').textContent = 'Hết giờ — đang chờ mở đáp án…';
+    updateMathChoiceControls(mathState);
+  }
+}
+
+function renderMathGame(state) {
+  const previous = mathState;
+  mathState = state;
+  if (state.status !== 'question' || previous?.status !== 'question' || previous.questionIndex !== state.questionIndex) {
+    mathPendingChoice = null;
+  }
+  if (state.myChoice != null) mathPendingChoice = null;
+  if (!mathOpen) return;
+  state.serverOffset = state.serverNow - Date.now();
+  const question = INTEGRAL_QUESTIONS[state.questionIndex];
+  $('mathPlayerCount').textContent = `${state.playerCount}/${state.capacity} người`;
+  $('mathRoomStatus').textContent = state.status === 'lobby'
+    ? 'Phòng chung · đang chờ bắt đầu'
+    : state.status === 'question'
+      ? `Câu ${state.questionIndex + 1}/${state.questionCount}`
+      : state.status === 'reveal'
+        ? `Đáp án câu ${state.questionIndex + 1}`
+        : 'Ván chơi đã kết thúc';
+  $('mathMessage').textContent = state.status === 'lobby'
+    ? state.isParticipant
+      ? state.isHost ? 'Bạn là người dẫn ván — bắt đầu khi mọi người đã sẵn sàng.' : 'Đang chờ người dẫn bắt đầu ván chơi.'
+      : 'Ván trước đã kết thúc. Bạn có thể xem bảng điểm.'
+    : state.status === 'question'
+      ? `Đã trả lời ${state.answerCount}/${state.playerCount} người chơi.`
+      : state.status === 'reveal'
+        ? 'Đáp án và lời giải đang được hiển thị.'
+        : 'Cảm ơn các bạn đã tham gia!';
+  $('mathLobby').hidden = state.status !== 'lobby';
+  $('mathQuestionView').hidden = state.status !== 'question' && state.status !== 'reveal';
+  $('mathFinished').hidden = state.status !== 'finished';
+  $('mathHostHint').textContent = state.isHost
+    ? `Bạn là người dẫn. Tối đa ${MATH_GAME_MAX_PLAYERS} người chơi trong phòng chung.`
+    : 'Tối đa 40 người cùng tham gia một ván chơi.';
+  $('mathProgress').style.width = state.status === 'finished'
+    ? '100%'
+    : question ? `${((state.questionIndex + 1) / state.questionCount) * 100}%` : '0%';
+  $('mathHostAction').hidden = !state.isHost || (state.status !== 'lobby' && state.status !== 'finished');
+  $('mathHostAction').disabled = !mathJaxReady;
+  $('mathHostAction').textContent = state.status === 'finished' ? 'Chơi lại' : 'Bắt đầu ván';
+  $('mathAnswerCount').textContent = state.status === 'question'
+    ? state.myChoice != null ? 'Đã ghi nhận câu trả lời của bạn.' : 'Chọn một đáp án trước khi hết giờ.'
+    : state.status === 'reveal' ? 'Điểm được cộng cho đáp án đúng và nhanh.' : '';
+  const players = $('mathPlayers');
+  players.replaceChildren();
+  state.players.forEach((player, index) => {
+    const item = document.createElement('li');
+    item.classList.toggle('me', player.id === state.myId);
+    item.classList.toggle('disconnected', !player.connected);
+    const name = document.createElement('b');
+    name.textContent = `${index + 1}. ${player.name}${player.id === state.hostId ? ' · host' : ''}`;
+    const score = document.createElement('span');
+    score.textContent = ` — ${player.score} điểm${player.connected ? '' : ' · đã rời'}`;
+    item.append(name, score);
+    players.appendChild(item);
+  });
+  const key = `${state.status}:${state.questionIndex}`;
+  if ((state.status === 'question' || state.status === 'reveal') && key !== mathRenderedKey) {
+    mathRenderedKey = key;
+    showMathQuestion(state);
+  } else if (state.status === 'question' || state.status === 'reveal') {
+    updateMathChoiceControls(state);
+  }
+  updateMathTimer();
+}
+
+function submitMathAnswer(choice) {
+  if (!mathState || mathState.status !== 'question' || mathState.myChoice != null || mathPendingChoice != null) return;
+  mathPendingChoice = choice;
+  updateMathChoiceControls(mathState);
+  if (!mp.mathAnswer(choice)) {
+    mathPendingChoice = null;
+    $('mathMessage').textContent = 'Mất kết nối phòng chơi — đang thử kết nối lại.';
+    updateMathChoiceControls(mathState);
+  }
+}
+
+function openMathGame() {
+  mathOpen = true;
+  mathRenderedKey = '';
+  $('mathGame').hidden = false;
+  if (mathCountdownTimer) clearInterval(mathCountdownTimer);
+  mathCountdownTimer = setInterval(updateMathTimer, 250);
+  $('mathMessage').textContent = netStatus === 'solo'
+    ? 'Math Game cần kết nối máy chủ. Hãy mở lại khi đang online.'
+    : 'Đang nối vào phòng Math Game chung…';
+  if (mp.mathJoin()) {
+    $('mathMessage').textContent = 'Đang tải phòng Math Game…';
+  }
+  if (mathState) renderMathGame(mathState);
+  $('mathFormulaStatus').hidden = false;
+  $('mathFormulaStatus').textContent = 'Đang tải bộ hiển thị công thức…';
+  ensureMathJax().then(() => {
+    if (!mathOpen) return;
+    $('mathFormulaStatus').hidden = true;
+    if (mathState) renderMathGame(mathState);
+  }).catch(error => {
+    console.error('Math Game formula rendering failed:', error);
+    if (!mathOpen) return;
+    $('mathFormulaStatus').hidden = false;
+    $('mathFormulaStatus').textContent = 'Không tải được công thức LaTeX. Kiểm tra mạng rồi đóng và mở lại Math Game.';
+    $('mathMessage').textContent = 'Cần tải bộ hiển thị công thức trước khi bắt đầu.';
+    if (mathState) renderMathGame(mathState);
+  });
+}
+
+function closeMathGame() {
+  mathOpen = false;
+  $('mathGame').hidden = true;
+  if (mathCountdownTimer) clearInterval(mathCountdownTimer);
+  mathCountdownTimer = null;
+  mathRenderedKey = '';
+}
+
+function mathHostAction() {
+  if (!mathState?.isHost) return;
+  const sent = mathState.status === 'finished' ? mp.mathRematch() : mp.mathStart();
+  if (!sent) $('mathMessage').textContent = 'Chưa kết nối được với phòng chơi.';
+}
+
+$('mathClose').addEventListener('click', closeMathGame);
+$('mathHostAction').addEventListener('click', mathHostAction);
+$('afkReconnect').addEventListener('click', () => {
+  if (netStatus !== 'connecting') mp.connect();
 });
 $('bookBtn').addEventListener('click', () => (bookOpen ? closeGuestbook() : openGuestbook()));
 $('bxhBtn')?.addEventListener('click', () => (boardOpen ? closeLeaderboard() : openLeaderboard()));
@@ -1234,6 +1540,7 @@ function greeting(n) {
 
 function use() {
   unlockAudio();
+  if (mathOpen) { closeMathGame(); return; }
   if (bookOpen) { closeGuestbook(); return; }
   if (boardOpen) { closeLeaderboard(); return; }
   if (galleryOpen) { galleryOpen = false; closeGallery(); releaseGameFocus(); return; }
@@ -1286,6 +1593,10 @@ function use() {
   if (current.action === 'gallery') {
     openGallery(current.image, current.title, current.text);
     galleryOpen = true;
+    return;
+  }
+  if (current.action === 'math-game') {
+    openMathGame();
     return;
   }
   if (current.npc) {
@@ -1460,7 +1771,7 @@ function updatePlayer(dt) {
   iz -= joy.y;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || !started || overviewOn) ix = iz = 0;
+  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || mathOpen || !started || overviewOn) ix = iz = 0;
   const wantMove = Math.hypot(ix, iz) > 0.08;
   if (player.pose && wantMove) clearPlayerPose();
   if (player.pose === 'sit' || player.pose === 'lie') ix = iz = 0;
@@ -1625,8 +1936,16 @@ function updateCamera(dt) {
   camD += (hit - camD) * Math.min(1, dt * (hit < camD ? 25 : 4));
   followCameraPosition.copy(target).addScaledVector(dir, camD);
   followCameraPosition.y = Math.max(0.35, followCameraPosition.y);
+  if (overviewOn) {
+    overviewAngle = (overviewAngle + dt * overviewRotationSpeed) % (2 * Math.PI);
+  }
+  overviewCameraPosition.set(
+    overviewTarget.x + Math.sin(overviewAngle) * overviewRadius,
+    overviewPosition.y,
+    overviewTarget.z + Math.cos(overviewAngle) * overviewRadius,
+  );
   overviewBlend += ((overviewOn ? 1 : 0) - overviewBlend) * Math.min(1, dt * 2.5);
-  camera.position.copy(followCameraPosition).lerp(overviewPosition, overviewBlend);
+  camera.position.copy(followCameraPosition).lerp(overviewCameraPosition, overviewBlend);
   blendedCameraTarget.copy(target).lerp(overviewTarget, overviewBlend);
   const fov = defaultCameraFov - 15 * overviewBlend;
   if (Math.abs(camera.fov - fov) > 0.1) {
@@ -1711,6 +2030,7 @@ function start() {
   $('chatBar').hidden = true;
   releaseGameFocus();
   toast(`Chào mừng bạn về trường! Tìm ${TOTAL} kỷ vật đang phát sáng, sút bóng & xem album ảnh thật nhé.`, 5200);
+  resetIdleTimer();
   pushStats();
   if (document.body.classList.contains('touch')) {
     setTimeout(() => toast('Joystick góc trái để đi; kéo vùng phải xoay camera; hai ngón zoom.', 5200), 1200);

@@ -3,8 +3,9 @@
 // - SchoolRoom (Durable Object, SQLite): một "sân trường" chung — WebSocket realtime + sổ lưu bút.
 //   Dùng WebSocket Hibernation API để không tốn thời gian chạy khi mọi người đứng yên.
 import { DurableObject } from 'cloudflare:workers';
+import { INTEGRAL_QUESTIONS, MATH_GAME_MAX_PLAYERS, MATH_QUESTION_MS, MATH_REVEAL_MS } from '../public/js/mathGameData.js';
 
-const MAX_PLAYERS = 100// Workers Paid — giới hạn phòng san-truong (giảm tải)
+const MAX_PLAYERS = 150// Workers Paid — giới hạn phòng san-truong (giảm tải)
 const STALE_MS = 45 * 60_000; // đứng yên / tab nền — không quét đá khỏi phòng (chấp nhận lag hơn là disconnect)
 const GHOST_MS = 8 * 60_000;  // socket chưa hello xong quá lâu → dọn
 const SWEEP_MS = 5 * 60_000;  // quét nhẹ, tránh giật khi đông người
@@ -112,15 +113,36 @@ export class SchoolRoom extends DurableObject {
     // Trả lời "ping" mà không đánh thức object.
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     this.state = new Map(); // WebSocket -> trạng thái (dựng lại từ attachment sau khi ngủ đông)
+    this.mathGame = null;
     ctx.blockConcurrencyWhile(async () => {
-      if ((await ctx.storage.getAlarm()) === null && ctx.getWebSockets().length) await ctx.storage.setAlarm(Date.now() + SWEEP_MS);
+      this.mathGame = await ctx.storage.get('mathGame') || null;
+      if ((await ctx.storage.getAlarm()) === null && (ctx.getWebSockets().length || this.mathGameHasDeadline())) {
+        await this.scheduleNextAlarm();
+      }
     });
   }
 
   // Quét định kỳ: đóng các socket không còn hoạt động (client tắt đột ngột, không gửi close).
   async alarm() {
-    this.sweep();
-    if (this.ctx.getWebSockets().length) await this.ctx.storage.setAlarm(Date.now() + SWEEP_MS);
+    const now = Date.now();
+    await this.sweep(now);
+    await this.advanceMathGame(now);
+    await this.scheduleNextAlarm(now);
+  }
+
+  mathGameHasDeadline() {
+    return this.mathGame?.status === 'question' || this.mathGame?.status === 'reveal';
+  }
+
+  async scheduleNextAlarm(now = Date.now()) {
+    const deadline = this.mathGame?.status === 'question'
+      ? this.mathGame.deadline
+      : this.mathGame?.status === 'reveal' ? this.mathGame.revealUntil : 0;
+    if (this.ctx.getWebSockets().length || deadline) {
+      await this.ctx.storage.setAlarm(deadline ? Math.min(now + SWEEP_MS, deadline) : now + SWEEP_MS);
+    } else {
+      await this.ctx.storage.deleteAlarm();
+    }
   }
 
   lastSeen(ws, s) {
@@ -128,13 +150,13 @@ export class SchoolRoom extends DurableObject {
     return Math.max(s.openedAt || 0, s.savedAt || 0, s.seenAt || 0, auto ? auto.getTime() : 0);
   }
 
-  sweep(now = Date.now()) {
+  async sweep(now = Date.now()) {
     let closed = 0;
     for (const ws of this.ctx.getWebSockets()) {
       const s = this.get(ws);
       const idle = now - this.lastSeen(ws, s);
       if (s.left) {
-        this.leave(ws);
+        await this.leave(ws);
         try { ws.close(1000, 'bye'); } catch { /* đã đóng */ }
         closed++;
         continue;
@@ -145,7 +167,7 @@ export class SchoolRoom extends DurableObject {
         continue;
       }
       if (s.profile && idle > STALE_MS) {
-        this.leave(ws);
+        await this.leave(ws);
         try { ws.close(1001, 'stale'); } catch { /* đã đóng */ }
         closed++;
       }
@@ -184,7 +206,7 @@ export class SchoolRoom extends DurableObject {
       });
     }
     if (url.pathname === '/api/online') {
-      const swept = this.sweep();
+      const swept = await this.sweep();
       if (url.searchParams.get('thongke') !== '1') {
         return Response.json({ online: this.players().length, swept });
       }
@@ -215,7 +237,7 @@ export class SchoolRoom extends DurableObject {
     if (url.pathname !== '/api/ws') return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
     if (this.onlineCount() >= MAX_PLAYERS) {
-      this.sweep();
+      await this.sweep();
       if (this.onlineCount() >= MAX_PLAYERS) return new Response('Sân trường đang quá đông', { status: 503 });
     }
 
@@ -283,6 +305,190 @@ export class SchoolRoom extends DurableObject {
 
   classHistory(code) {
     return this.sql.exec('SELECT id, name, info, text, ts FROM class_msgs WHERE code = ? ORDER BY id DESC LIMIT 60', code).toArray().reverse();
+  }
+
+  newMathGame() {
+    return { status: 'lobby', hostId: null, questionIndex: -1, deadline: 0, revealUntil: 0, players: {} };
+  }
+
+  mathConnectedPlayers() {
+    if (!this.mathGame) return [];
+    return this.sockets().filter(([ws, s]) => ws.readyState === WebSocket.OPEN && !s.left && this.mathGame.players[s.id]);
+  }
+
+  mathStateFor(myId) {
+    const game = this.mathGame;
+    const status = game?.status || 'lobby';
+    const players = Object.values(game?.players || {}).map(p => {
+      const [ws, connection] = this.byId(p.id);
+      const isConnected = !!ws && ws.readyState === WebSocket.OPEN && !connection.left;
+      const reveal = status === 'reveal' || status === 'finished';
+      return {
+        id: p.id,
+        name: p.name,
+        score: p.score,
+        connected: isConnected,
+        answered: p.choice != null,
+        choice: reveal || p.id === myId ? p.choice : null,
+        correct: reveal ? p.correct : null,
+      };
+    }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    const self = game?.players?.[myId];
+    return {
+      status,
+      hostId: game?.hostId ?? null,
+      myId,
+      isHost: game?.hostId === myId,
+      isParticipant: !!self,
+      questionIndex: game?.questionIndex ?? -1,
+      questionCount: INTEGRAL_QUESTIONS.length,
+      serverNow: Date.now(),
+      deadline: game?.deadline || 0,
+      revealUntil: game?.revealUntil || 0,
+      answerCount: Object.values(game?.players || {}).filter(p => p.choice != null).length,
+      playerCount: this.mathConnectedPlayers().length,
+      capacity: MATH_GAME_MAX_PLAYERS,
+      correctIndex: status === 'reveal' || status === 'finished'
+        ? INTEGRAL_QUESTIONS[game?.questionIndex]?.correctIndex ?? null
+        : null,
+      myChoice: self?.choice ?? null,
+      players,
+    };
+  }
+
+  async saveMathGame() {
+    if (this.mathGame) await this.ctx.storage.put('mathGame', this.mathGame);
+    else await this.ctx.storage.delete('mathGame');
+  }
+
+  sendMathState(ws, myId) {
+    this.tell(ws, { t: 'mathState', state: this.mathStateFor(myId) });
+  }
+
+  broadcastMathGame() {
+    if (!this.mathGame) return;
+    for (const [ws, s] of this.sockets()) {
+      if (!s.left && this.mathGame.players[s.id]) this.sendMathState(ws, s.id);
+    }
+  }
+
+  broadcastMathProgress() {
+    if (!this.mathGame) return;
+    const progress = {
+      t: 'mathProgress',
+      answerCount: Object.values(this.mathGame.players).filter(p => p.choice != null).length,
+      playerCount: this.mathConnectedPlayers().length,
+    };
+    for (const [ws, s] of this.sockets()) {
+      if (!s.left && this.mathGame.players[s.id]) this.tell(ws, progress);
+    }
+  }
+
+  async joinMathGame(ws, s, now) {
+    if (!s.profile) return;
+    if (!this.mathGame || (this.mathGame.status === 'finished' && this.mathConnectedPlayers().length === 0)) {
+      this.mathGame = this.newMathGame();
+    }
+    let player = this.mathGame.players[s.id];
+    if (!player) {
+      if (this.mathConnectedPlayers().length >= MATH_GAME_MAX_PLAYERS) {
+        this.tell(ws, { t: 'mathError', msg: `Phòng Math Game đã đủ ${MATH_GAME_MAX_PLAYERS} người chơi.` });
+        return;
+      }
+      player = this.mathGame.players[s.id] = {
+        id: s.id,
+        name: displayName(s.profile),
+        score: 0,
+        choice: null,
+        correct: null,
+        joinedAt: now,
+      };
+    }
+    if (!this.mathConnectedPlayers().some(([, player]) => player.id === this.mathGame.hostId)) {
+      this.mathGame.hostId = this.mathConnectedPlayers()[0]?.[1].id ?? (player ? s.id : null);
+    }
+    await this.saveMathGame();
+    await this.scheduleNextAlarm(now);
+    if (this.mathGame.players[s.id]) this.broadcastMathGame();
+    else this.sendMathState(ws, s.id);
+  }
+
+  async startMathGame(s, now) {
+    const game = this.mathGame;
+    if (!game || game.status !== 'lobby' || game.hostId !== s.id || !game.players[s.id]) return;
+    game.status = 'question';
+    game.questionIndex = 0;
+    game.deadline = now + MATH_QUESTION_MS;
+    game.revealUntil = 0;
+    for (const player of Object.values(game.players)) {
+      player.score = 0;
+      player.choice = null;
+      player.correct = null;
+    }
+    await this.saveMathGame();
+    await this.scheduleNextAlarm(now);
+    this.broadcastMathGame();
+  }
+
+  async answerMathQuestion(s, choice, now) {
+    const game = this.mathGame;
+    const player = game?.players?.[s.id];
+    if (!player || game.status !== 'question' || now >= game.deadline || player.choice != null) return;
+    const question = INTEGRAL_QUESTIONS[game.questionIndex];
+    if (!question || !Number.isSafeInteger(choice) || choice < 0 || choice >= question.choices.length) return;
+    player.choice = choice;
+    player.correct = choice === question.correctIndex;
+    if (player.correct) {
+      const remaining = Math.max(0, Math.min(1, (game.deadline - now) / MATH_QUESTION_MS));
+      player.score += 500 + Math.round(500 * remaining);
+    }
+    await this.saveMathGame();
+    this.tell(this.byId(s.id)[0], { t: 'mathAnswerAck', choice });
+    this.broadcastMathProgress();
+  }
+
+  async rematchMathGame(s, now) {
+    const game = this.mathGame;
+    if (!game || game.status !== 'finished' || game.hostId !== s.id) return;
+    game.status = 'lobby';
+    game.questionIndex = -1;
+    game.deadline = 0;
+    game.revealUntil = 0;
+    for (const player of Object.values(game.players)) {
+      player.score = 0;
+      player.choice = null;
+      player.correct = null;
+    }
+    await this.saveMathGame();
+    await this.scheduleNextAlarm(now);
+    this.broadcastMathGame();
+  }
+
+  async advanceMathGame(now) {
+    const game = this.mathGame;
+    if (game?.status === 'question' && now >= game.deadline) {
+      game.status = 'reveal';
+      game.revealUntil = now + MATH_REVEAL_MS;
+    } else if (game?.status === 'reveal' && now >= game.revealUntil) {
+      if (game.questionIndex + 1 >= INTEGRAL_QUESTIONS.length) {
+        game.status = 'finished';
+        game.deadline = 0;
+        game.revealUntil = 0;
+      } else {
+        game.status = 'question';
+        game.questionIndex++;
+        game.deadline = now + MATH_QUESTION_MS;
+        game.revealUntil = 0;
+        for (const player of Object.values(game.players)) {
+          player.choice = null;
+          player.correct = null;
+        }
+      }
+    } else {
+      return;
+    }
+    await this.saveMathGame();
+    this.broadcastMathGame();
   }
 
   sendToClass(code, msg) {
@@ -506,6 +712,22 @@ export class SchoolRoom extends DurableObject {
         this.joinClass(ws, s, String(m.code ?? '').toUpperCase().slice(0, 16));
         break;
       }
+      case 'mathJoin': {
+        await this.joinMathGame(ws, s, now);
+        break;
+      }
+      case 'mathStart': {
+        await this.startMathGame(s, now);
+        break;
+      }
+      case 'mathAnswer': {
+        await this.answerMathQuestion(s, m.choice, now);
+        break;
+      }
+      case 'mathRematch': {
+        await this.rematchMathGame(s, now);
+        break;
+      }
       case 'classLeave': {
         const old = s.cls;
         s.cls = null;
@@ -592,12 +814,12 @@ export class SchoolRoom extends DurableObject {
   }
 
   async webSocketClose(ws, code) {
-    this.leave(ws);
+    await this.leave(ws);
     try { ws.close(code, 'bye'); } catch { /* đã đóng */ }
   }
 
   async webSocketError(ws) {
-    this.leave(ws);
+    await this.leave(ws);
   }
 
   sockets() {
@@ -665,7 +887,7 @@ export class SchoolRoom extends DurableObject {
     }
   }
 
-  leave(ws) {
+  async leave(ws) {
     const s = this.get(ws);
     if (s.left) return; // đã rời (quét ma rồi webSocketClose gọi lại)
     this.releaseBikeSeats(ws, s);
@@ -677,7 +899,21 @@ export class SchoolRoom extends DurableObject {
       this.broadcast({ t: 'presence', online: this.onlineCount() }, s.id);
     }
     if (s.cls) this.sendToClass(s.cls, { t: 'classMembers', code: s.cls, members: this.classMembers(s.cls, s.id) });
+    if (this.mathGame?.players?.[s.id]) {
+      if (this.mathGame.status === 'lobby') {
+        delete this.mathGame.players[s.id];
+      } else {
+        this.mathGame.players[s.id].connected = false;
+        this.mathGame.players[s.id].leftAt = Date.now();
+      }
+      if (this.mathGame.hostId === s.id) {
+        this.mathGame.hostId = this.mathConnectedPlayers()[0]?.[1].id ?? null;
+      }
+      await this.saveMathGame();
+      this.broadcastMathGame();
+    }
     this.state.delete(ws);
+    await this.scheduleNextAlarm();
   }
 
 }

@@ -1,0 +1,111 @@
+export const MATH_GAME_MAX_PLAYERS = 40;
+export const MATH_QUESTION_MS = 20_000;
+export const MATH_REVEAL_MS = 5_000;
+
+export const INTEGRAL_QUESTIONS = [
+  {
+    level: 'Dễ',
+    prompt: String.raw`Tính \(\int 2x\,dx\).`,
+    choices: [String.raw`\(x^2+C\)`, String.raw`\(2x^2+C\)`, String.raw`\(x+C\)`, String.raw`\(\frac{x^2}{2}+C\)`],
+    correctIndex: 0,
+    explanation: String.raw`Dùng công thức \(\int x^n\,dx=\frac{x^{n+1}}{n+1}+C\), nên \(\int 2x\,dx=x^2+C\).`,
+  },
+  {
+    level: 'Dễ',
+    prompt: String.raw`Tính \(\int \cos x\,dx\).`,
+    choices: [String.raw`\(\sin x+C\)`, String.raw`\(-\sin x+C\)`, String.raw`\(\cos x+C\)`, String.raw`\(-\cos x+C\)`],
+    correctIndex: 0,
+    explanation: String.raw`Vì \((\sin x)'=\cos x\), nên \(\int\cos x\,dx=\sin x+C\).`,
+  },
+  {
+    level: 'Dễ',
+    prompt: String.raw`Tính \(\int_0^1 3x^2\,dx\).`,
+    choices: [String.raw`\(\frac{1}{3}\)`, String.raw`\(1\)`, String.raw`\(3\)`, String.raw`\(2\)`],
+    correctIndex: 1,
+    explanation: String.raw`\(\int_0^1 3x^2\,dx=[x^3]_0^1=1\).`,
+  },
+  {
+    level: 'Dễ',
+    prompt: String.raw`Nguyên hàm của \(e^x\) là gì?`,
+    choices: [String.raw`\(xe^x+C\)`, String.raw`\(e^{x+1}+C\)`, String.raw`\(e^x+C\)`, String.raw`\(\ln|x|+C\)`],
+    correctIndex: 2,
+    explanation: String.raw`Vì \((e^x)'=e^x\), nên \(\int e^x\,dx=e^x+C\).`,
+  },
+  {
+    level: 'Dễ',
+    prompt: String.raw`Tính \(\int \frac{1}{x}\,dx\) với \(x\ne0\).`,
+    choices: [String.raw`\(\ln|x|+C\)`, String.raw`\(\frac{1}{x^2}+C\)`, String.raw`\(x\ln|x|+C\)`, String.raw`\(-\frac{1}{x^2}+C\)`],
+    correctIndex: 0,
+    explanation: String.raw`Công thức cơ bản: \(\int\frac{1}{x}\,dx=\ln|x|+C\).`,
+  },
+  {
+    level: 'Trung bình',
+    prompt: String.raw`Tính \(\int(2x+1)^3\,dx\).`,
+    choices: [String.raw`\(\frac{(2x+1)^4}{8}+C\)`, String.raw`\(\frac{(2x+1)^4}{4}+C\)`, String.raw`\((2x+1)^4+C\)`, String.raw`\(\frac{(2x+1)^3}{6}+C\)`],
+    correctIndex: 0,
+    explanation: String.raw`Đặt \(u=2x+1\), \(du=2\,dx\). Khi đó nguyên hàm là \(\frac{u^4}{8}+C\).`,
+  },
+  {
+    level: 'Trung bình',
+    prompt: String.raw`Tính \(\int x\cos(x^2)\,dx\).`,
+    choices: [String.raw`\(\sin(x^2)+C\)`, String.raw`\(\frac{1}{2}\sin(x^2)+C\)`, String.raw`\(\frac{1}{2}\cos(x^2)+C\)`, String.raw`\(x\sin(x^2)+C\)`],
+    correctIndex: 1,
+    explanation: String.raw`Đặt \(u=x^2\), \(du=2x\,dx\), suy ra \(\int x\cos(x^2)\,dx=\frac12\sin(x^2)+C\).`,
+  },
+  {
+    level: 'Trung bình',
+    prompt: String.raw`Tính \(\int_0^{\frac{\pi}{2}}\sin x\,dx\).`,
+    choices: [String.raw`\(0\)`, String.raw`\(\frac{\pi}{2}\)`, String.raw`\(1\)`, String.raw`\(-1\)`],
+    correctIndex: 2,
+    explanation: String.raw`\(\int_0^{\frac{\pi}{2}}\sin x\,dx=[-\cos x]_0^{\frac{\pi}{2}}=1\).`,
+  },
+  {
+    level: 'Trung bình',
+    prompt: String.raw`Tính \(\int\frac{dx}{x^2+4}\).`,
+    choices: [String.raw`\(\arctan\frac{x}{2}+C\)`, String.raw`\(\frac12\arctan\frac{x}{2}+C\)`, String.raw`\(\frac12\ln(x^2+4)+C\)`, String.raw`\(\frac{1}{x^2+4}+C\)`],
+    correctIndex: 1,
+    explanation: String.raw`Dùng \(\int\frac{dx}{x^2+a^2}=\frac1a\arctan\frac xa+C\) với \(a=2\).`,
+  },
+  {
+    level: 'Trung bình',
+    prompt: String.raw`Tính \(\int x^2e^x\,dx\).`,
+    choices: [String.raw`\(e^x(x^2+2x+2)+C\)`, String.raw`\(e^xx^3+C\)`, String.raw`\(e^x(x^2-2)+C\)`, String.raw`\(e^x(x^2-2x+2)+C\)`],
+    correctIndex: 3,
+    explanation: String.raw`Tích phân từng phần hai lần cho \(\int x^2e^x\,dx=e^x(x^2-2x+2)+C\).`,
+  },
+  {
+    level: 'Khó',
+    prompt: String.raw`Tính \(\int_0^1 x\ln(1+x)\,dx\).`,
+    choices: [String.raw`\(\frac12\ln2\)`, String.raw`\(\ln2-\frac12\)`, String.raw`\(\frac12-\frac12\ln2\)`, String.raw`\(\frac14\)`],
+    correctIndex: 3,
+    explanation: String.raw`Tích phân từng phần: \(\frac12\ln2-\frac12\int_0^1\frac{x^2}{1+x}\,dx=\frac14\).`,
+  },
+  {
+    level: 'Khó',
+    prompt: String.raw`Tính \(\int\frac{x^2}{x^3+1}\,dx\) với \(x>-1\).`,
+    choices: [String.raw`\(\ln(x^3+1)+C\)`, String.raw`\(\frac13\ln(x^3+1)+C\)`, String.raw`\(\frac{1}{3(x^3+1)}+C\)`, String.raw`\(\arctan(x^3)+C\)`],
+    correctIndex: 1,
+    explanation: String.raw`Đặt \(u=x^3+1\), \(du=3x^2\,dx\), được \(\frac13\ln|x^3+1|+C\).`,
+  },
+  {
+    level: 'Khó',
+    prompt: String.raw`Tính \(\int_0^1\frac{x^3}{(1+x^2)^2}\,dx\).`,
+    choices: [String.raw`\(\frac14\)`, String.raw`\(\ln2-\frac14\)`, String.raw`\(\frac12\ln2-\frac14\)`, String.raw`\(\frac12\ln2+\frac14\)`],
+    correctIndex: 2,
+    explanation: String.raw`Đặt \(u=1+x^2\). Khi đó tích phân bằng \(\frac12\int_1^2(\frac1u-\frac1{u^2})\,du=\frac12\ln2-\frac14\).`,
+  },
+  {
+    level: 'Khó',
+    prompt: String.raw`Tính tích phân suy rộng \(\int_0^1\ln x\,dx\).`,
+    choices: [String.raw`\(-1\)`, String.raw`\(0\)`, String.raw`\(1\)`, String.raw`\(-\frac12\)`],
+    correctIndex: 0,
+    explanation: String.raw`\(\int_0^1\ln x\,dx=[x\ln x-x]_0^1=-1\), vì \(\lim_{x\to0^+}x\ln x=0\).`,
+  },
+  {
+    level: 'Khó',
+    prompt: String.raw`Tính \(\int\sin^3x\cos x\,dx\).`,
+    choices: [String.raw`\(\frac14\cos^4x+C\)`, String.raw`\(\frac14\sin^4x+C\)`, String.raw`\(\sin^4x+C\)`, String.raw`\(-\frac14\sin^4x+C\)`],
+    correctIndex: 1,
+    explanation: String.raw`Đặt \(u=\sin x\), \(du=\cos x\,dx\), nên \(\int u^3\,du=\frac14\sin^4x+C\).`,
+  },
+];
