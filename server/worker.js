@@ -308,7 +308,7 @@ export class SchoolRoom extends DurableObject {
   }
 
   newMathGame() {
-    return { status: 'lobby', hostId: null, questionIndex: -1, deadline: 0, revealUntil: 0, players: {} };
+    return { status: 'lobby', questionIndex: -1, deadline: 0, revealUntil: 0, players: {} };
   }
 
   mathConnectedPlayers() {
@@ -336,9 +336,7 @@ export class SchoolRoom extends DurableObject {
     const self = game?.players?.[myId];
     return {
       status,
-      hostId: game?.hostId ?? null,
       myId,
-      isHost: game?.hostId === myId,
       isParticipant: !!self,
       questionIndex: game?.questionIndex ?? -1,
       questionCount: INTEGRAL_QUESTIONS.length,
@@ -404,9 +402,6 @@ export class SchoolRoom extends DurableObject {
         joinedAt: now,
       };
     }
-    if (!this.mathConnectedPlayers().some(([, player]) => player.id === this.mathGame.hostId)) {
-      this.mathGame.hostId = this.mathConnectedPlayers()[0]?.[1].id ?? (player ? s.id : null);
-    }
     await this.saveMathGame();
     await this.scheduleNextAlarm(now);
     if (this.mathGame.players[s.id]) this.broadcastMathGame();
@@ -415,7 +410,7 @@ export class SchoolRoom extends DurableObject {
 
   async startMathGame(s, now) {
     const game = this.mathGame;
-    if (!game || game.status !== 'lobby' || game.hostId !== s.id || !game.players[s.id]) return;
+    if (!game || game.status !== 'lobby' || !game.players[s.id]) return;
     game.status = 'question';
     game.questionIndex = 0;
     game.deadline = now + MATH_QUESTION_MS;
@@ -449,7 +444,7 @@ export class SchoolRoom extends DurableObject {
 
   async rematchMathGame(s, now) {
     const game = this.mathGame;
-    if (!game || game.status !== 'finished' || game.hostId !== s.id) return;
+    if (!game || game.status !== 'finished' || !game.players[s.id]) return;
     game.status = 'lobby';
     game.questionIndex = -1;
     game.deadline = 0;
@@ -905,9 +900,6 @@ export class SchoolRoom extends DurableObject {
       } else {
         this.mathGame.players[s.id].connected = false;
         this.mathGame.players[s.id].leftAt = Date.now();
-      }
-      if (this.mathGame.hostId === s.id) {
-        this.mathGame.hostId = this.mathConnectedPlayers()[0]?.[1].id ?? null;
       }
       await this.saveMathGame();
       this.broadcastMathGame();

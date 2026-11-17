@@ -1049,7 +1049,7 @@ function renderMathGame(state) {
         : 'Ván chơi đã kết thúc';
   $('mathMessage').textContent = state.status === 'lobby'
     ? state.isParticipant
-      ? state.isHost ? 'Bạn là người dẫn ván — bắt đầu khi mọi người đã sẵn sàng.' : 'Đang chờ người dẫn bắt đầu ván chơi.'
+      ? 'Bạn đã vào phòng chung. Có thể bắt đầu chơi ngay khi sẵn sàng.'
       : 'Ván trước đã kết thúc. Bạn có thể xem bảng điểm.'
     : state.status === 'question'
       ? `Đã trả lời ${state.answerCount}/${state.playerCount} người chơi.`
@@ -1059,15 +1059,13 @@ function renderMathGame(state) {
   $('mathLobby').hidden = state.status !== 'lobby';
   $('mathQuestionView').hidden = state.status !== 'question' && state.status !== 'reveal';
   $('mathFinished').hidden = state.status !== 'finished';
-  $('mathHostHint').textContent = state.isHost
-    ? `Bạn là người dẫn. Tối đa ${MATH_GAME_MAX_PLAYERS} người chơi trong phòng chung.`
-    : 'Tối đa 40 người cùng tham gia một ván chơi.';
+  $('mathRoomHint').textContent = `Phòng chung tối đa ${MATH_GAME_MAX_PLAYERS} người — bất kỳ ai trong phòng cũng có thể bắt đầu.`;
   $('mathProgress').style.width = state.status === 'finished'
     ? '100%'
     : question ? `${((state.questionIndex + 1) / state.questionCount) * 100}%` : '0%';
-  $('mathHostAction').hidden = !state.isHost || (state.status !== 'lobby' && state.status !== 'finished');
-  $('mathHostAction').disabled = !mathJaxReady;
-  $('mathHostAction').textContent = state.status === 'finished' ? 'Chơi lại' : 'Bắt đầu ván';
+  $('mathStartAction').hidden = !state.isParticipant || (state.status !== 'lobby' && state.status !== 'finished');
+  $('mathStartAction').disabled = !mathJaxReady;
+  $('mathStartAction').textContent = state.status === 'finished' ? 'Chơi lại' : 'Bắt đầu ván';
   $('mathAnswerCount').textContent = state.status === 'question'
     ? state.myChoice != null ? 'Đã ghi nhận câu trả lời của bạn.' : 'Chọn một đáp án trước khi hết giờ.'
     : state.status === 'reveal' ? 'Điểm được cộng cho đáp án đúng và nhanh.' : '';
@@ -1078,7 +1076,7 @@ function renderMathGame(state) {
     item.classList.toggle('me', player.id === state.myId);
     item.classList.toggle('disconnected', !player.connected);
     const name = document.createElement('b');
-    name.textContent = `${index + 1}. ${player.name}${player.id === state.hostId ? ' · host' : ''}`;
+    name.textContent = `${index + 1}. ${player.name}`;
     const score = document.createElement('span');
     score.textContent = ` — ${player.score} điểm${player.connected ? '' : ' · đã rời'}`;
     item.append(name, score);
@@ -1142,14 +1140,14 @@ function closeMathGame() {
   mathRenderedKey = '';
 }
 
-function mathHostAction() {
-  if (!mathState?.isHost) return;
+function mathStartAction() {
+  if (!mathState?.isParticipant) return;
   const sent = mathState.status === 'finished' ? mp.mathRematch() : mp.mathStart();
   if (!sent) $('mathMessage').textContent = 'Chưa kết nối được với phòng chơi.';
 }
 
 $('mathClose').addEventListener('click', closeMathGame);
-$('mathHostAction').addEventListener('click', mathHostAction);
+$('mathStartAction').addEventListener('click', mathStartAction);
 $('afkReconnect').addEventListener('click', () => {
   if (netStatus !== 'connecting') mp.connect();
 });
