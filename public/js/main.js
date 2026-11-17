@@ -12,6 +12,7 @@ import { mountBike, dismountBike, syncBikeVisual, detachBikeRider } from './bike
 import { createEnvironment } from './environment.js';
 import { createFireworks } from './fireworks.js';
 import { createHearts } from './hearts.js';
+import { mountYardGames } from './yardGames.js';
 import {
   tickSoccer, tickFlagCeremony, openGallery, closeGallery,
 } from './yardPlay.js';
@@ -348,12 +349,13 @@ const overviewCameraPosition = new THREE.Vector3();
 const overviewRotationSpeed = 2 * Math.PI / 75;
 const followCameraPosition = new THREE.Vector3();
 const blendedCameraTarget = new THREE.Vector3();
-let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, mathOpen = false;
+let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, mathOpen = false, yardGameOpen = false;
 let galleryOpen = false, boardOpen = false;
 let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
+let yardGamesUnmount = null;
 
 function uiBlocksGame() {
-  return menuOpen || bookOpen || chatOpen || classOpen || mathOpen || dialogOpen || galleryOpen || boardOpen
+  return menuOpen || bookOpen || chatOpen || classOpen || mathOpen || yardGameOpen || dialogOpen || galleryOpen || boardOpen
     || (!$('intro').hidden && !started);
 }
 function formFocusBlocksKeys() {
@@ -387,9 +389,14 @@ function toggleOverview() {
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
   if (!started || menuOpen || formFocusBlocksKeys()) return;
-  if (mathOpen && e.code !== 'KeyE' && e.code !== 'Escape') return;
+  if ((mathOpen || yardGameOpen) && e.code !== 'KeyE' && e.code !== 'Escape') return;
   if (e.code === 'KeyE' || e.code === 'Enter') { if (!e.repeat) use(); e.preventDefault(); return; }
-  if (e.code === 'Escape') { if (mathOpen) closeMathGame(); else closeDialog(); return; }
+  if (e.code === 'Escape') {
+    if (mathOpen) closeMathGame();
+    else if (yardGameOpen) closeYardGames();
+    else closeDialog();
+    return;
+  }
   if (e.code === 'KeyM') { mapOn = !mapOn; $('minimap').hidden = !mapOn; return; }
   if (e.code === 'KeyT' && started && !menuOpen) { openChat(); e.preventDefault(); return; }
   if (e.code === 'KeyC' && started && !menuOpen) { openClass(); e.preventDefault(); return; }
@@ -1132,6 +1139,25 @@ function openMathGame() {
   });
 }
 
+function openYardGames(game) {
+  yardGameOpen = true;
+  $('yardGameView').hidden = false;
+  keys.clear();
+  yardGamesUnmount?.();
+  yardGamesUnmount = mountYardGames($('yardGameContent'), $('yardGameTabs'), game);
+  releaseGameFocus();
+}
+
+function closeYardGames() {
+  if (!yardGameOpen) return;
+  yardGameOpen = false;
+  $('yardGameView').hidden = true;
+  yardGamesUnmount?.();
+  yardGamesUnmount = null;
+  releaseGameFocus();
+  canvas.focus?.();
+}
+
 function closeMathGame() {
   mathOpen = false;
   $('mathGame').hidden = true;
@@ -1148,6 +1174,7 @@ function mathStartAction() {
 
 $('mathClose').addEventListener('click', closeMathGame);
 $('mathStartAction').addEventListener('click', mathStartAction);
+$('yardGameClose').addEventListener('click', closeYardGames);
 $('afkReconnect').addEventListener('click', () => {
   if (netStatus !== 'connecting') mp.connect();
 });
@@ -1538,6 +1565,7 @@ function greeting(n) {
 
 function use() {
   unlockAudio();
+  if (yardGameOpen) { closeYardGames(); return; }
   if (mathOpen) { closeMathGame(); return; }
   if (bookOpen) { closeGuestbook(); return; }
   if (boardOpen) { closeLeaderboard(); return; }
@@ -1597,6 +1625,10 @@ function use() {
     openMathGame();
     return;
   }
+  if (current.action === 'yard-game') {
+    openYardGames(current.game);
+    return;
+  }
   if (current.npc) {
     const n = current.npc;
     n.talkT = 4;
@@ -1636,7 +1668,7 @@ function drawMap() {
   rect({ minX: -100, maxX: 100, minZ: 40, maxZ: 48 }, '#55595f');
   rect({ minX: -100, maxX: 100, minZ: 36.3, maxZ: 40 }, '#a8584a');
   rect({ minX: -100, maxX: 100, minZ: 48, maxZ: 53 }, '#bdb9b0');
-  const colors = { field: '#5aa944', stand: '#e0b546', building: '#f2d98c', stage: '#7a4a2a', shed: '#4b7eb3', gate: '#f3cf55' };
+  const colors = { field: '#5aa944', stand: '#e0b546', building: '#f2d98c', stage: '#7a4a2a', shed: '#4b7eb3', gate: '#f3cf55', yardGame: '#d7d0c2' };
   for (const r of world.rects) rect(r, colors[r.kind] || '#ccc');
   mctx.strokeStyle = '#f3cf55';
   mctx.lineWidth = 1.5;
@@ -1769,7 +1801,7 @@ function updatePlayer(dt) {
   iz -= joy.y;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || mathOpen || !started || overviewOn) ix = iz = 0;
+  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || mathOpen || yardGameOpen || !started || overviewOn) ix = iz = 0;
   const wantMove = Math.hypot(ix, iz) > 0.08;
   if (player.pose && wantMove) clearPlayerPose();
   if (player.pose === 'sit' || player.pose === 'lie') ix = iz = 0;
@@ -2000,7 +2032,7 @@ function frame() {
   if (started) {
     current = nearest();
     if (current) $('promptText').textContent = current.label;
-    $('prompt').hidden = !current || dialogOpen || galleryOpen || boardOpen;
+    $('prompt').hidden = !current || dialogOpen || galleryOpen || boardOpen || yardGameOpen;
     if ((mapTick += dt) > 0.1 && mapOn) { mapTick = 0; drawMap(); }
   }
 
@@ -2027,7 +2059,7 @@ function start() {
   $('classPanel').hidden = true;
   $('chatBar').hidden = true;
   releaseGameFocus();
-  toast(`Chào mừng bạn về trường! Tìm ${TOTAL} kỷ vật đang phát sáng, sút bóng & xem album ảnh thật nhé.`, 5200);
+  toast(`Chào mừng bạn về trường! Tìm ${TOTAL} kỷ vật, sút bóng và ghé Kỳ Đài Học Trò ở sân sau để chơi cờ nhé.`, 5200);
   resetIdleTimer();
   pushStats();
   if (document.body.classList.contains('touch')) {

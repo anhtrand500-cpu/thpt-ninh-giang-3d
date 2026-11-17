@@ -299,7 +299,7 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
 .math-lobby h3, .math-finished h3 { margin: 10px 0; color: #172554; font-size: 22px; }
 .math-lobby p, .math-finished p { margin: 4px 0; color: #475569; line-height: 1.55; }
 .math-mark { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 22px; background: #dbeafe; color: #1d4ed8; font-size: 46px; font-weight: 700; }
-#mathHostHint { color: #1d4ed8; font-weight: 700; }
+#mathRoomHint { color: #1d4ed8; font-weight: 700; }
 .math-question-meta { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 12px; color: #475569; font-size: 13px; }
 #mathLevel { border-radius: 999px; padding: 5px 10px; background: #e0e7ff; color: #3730a3; }
 #mathTimer { color: #1d4ed8; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -339,6 +339,68 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
   .math-choices { gap: 7px; }
   .math-choice { min-height: 58px; padding: 8px; font-size: 14px; }
   .math-footer .primary { min-width: 142px; padding: 10px; font-size: 13px; }
+}
+
+/* ---- Kỳ Đài Học Trò ---- */
+#yardGameView { position: fixed; inset: 0; z-index: 75; display: grid; place-items: center; padding: 12px; background: rgba(22, 18, 14, 0.78); }
+.yard-game-card { width: min(820px, 100%); max-height: 94vh; display: flex; flex-direction: column; overflow: auto; padding: 18px; border: 5px solid #d5a74a; border-radius: 22px; background: #fffaf0; box-shadow: 0 22px 65px rgba(0,0,0,0.46); }
+.yard-game-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 4px 12px; }
+.yard-game-head small { color: #a64b1d; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; }
+.yard-game-head h2 { margin: 3px 0 0; color: #6b2b1d; font-size: 23px; }
+.yard-game-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 7px; border-radius: 13px; background: #edf0f2; }
+.yard-game-tab { min-width: 0; padding: 9px 5px; border: 1px solid #d4dce4; border-radius: 10px; background: #fff; color: #334155; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.yard-game-tab.active { border-color: #9c3d12; background: #a94312; color: #fff; }
+.yard-game-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 12px 0 8px; }
+.yard-game-eyebrow { color: #a64b1d; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
+.yard-game-heading h3 { margin: 2px 0 0; color: #25364a; font-size: 20px; }
+.yard-game-play { display: grid; justify-items: center; gap: 9px; }
+.yard-game-controls { width: min(560px, 100%); display: flex; justify-content: center; gap: 8px; }
+.yard-game-mode { max-width: 150px; padding: 8px 10px; border: 1px solid #d6c9aa; border-radius: 9px; background: #fff; color: #39465a; font: inherit; font-size: 13px; }
+.yard-game-status { min-height: 21px; margin: 0; color: #283c57; font-size: 14px; font-weight: 700; text-align: center; }
+.yard-game-help { margin: 0 0 2px; color: #5f6470; font-size: 12px; line-height: 1.4; text-align: center; }
+.yard-game-primary, .yard-game-secondary { min-width: 128px; padding: 9px 16px; border: 0; border-radius: 10px; background: #a94312; color: #fff; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.yard-game-secondary { background: #465365; }
+.yard-game-primary:hover, .yard-game-secondary:hover { filter: brightness(1.1); }
+.caro-board { width: min(560px, 100%); aspect-ratio: 1; display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); overflow: hidden; border: 2px solid #547bd1; border-radius: 3px; background: #fffdf8; box-shadow: 0 3px 12px rgba(27,42,65,0.12); }
+.caro-cell { min-width: 0; min-height: 0; border: 0; border-right: 1px solid #b8d0ff; border-bottom: 1px solid #b8d0ff; background: transparent; color: #bd3441; font-size: clamp(11px, 2.2vw, 22px); font-weight: 900; cursor: pointer; }
+.caro-cell:hover:not(:disabled) { background: #edf4ff; }
+.caro-cell.mark-O { color: #24599e; }
+.caro-cell:disabled { cursor: default; }
+.chess-board { width: min(520px, 100%); aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); border: 4px solid #603d2c; border-radius: 5px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.18); }
+.chess-square { display: grid; place-items: center; min-width: 0; min-height: 0; padding: 0; border: 0; font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif; font-size: clamp(21px, 7vw, 49px); line-height: 1; cursor: pointer; }
+.chess-square.light { background: #f0dfc1; color: #20252c; }
+.chess-square.dark { background: #9b6244; color: #20252c; }
+.chess-square.white-piece { color: #fffdf4; text-shadow: 0 1px 2px #252525, 0 0 3px #252525; }
+.chess-square.selected { box-shadow: inset 0 0 0 4px #f4cf4d; }
+.chess-square.legal { box-shadow: inset 0 0 0 4px rgba(49, 142, 73, 0.8); }
+.horse-controls { width: min(560px, 100%); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+.horse-controls .yard-game-status { flex-basis: 100%; text-align: center; }
+.horse-player-count { max-width: 130px; padding: 8px 7px; border: 1px solid #d6c9aa; border-radius: 9px; background: #fff; color: #39465a; font: inherit; font-size: 12px; }
+.yard-game-mode:disabled, .horse-player-count:disabled { opacity: 0.6; }
+.yard-game-primary:disabled, .caro-cell:disabled, .chess-square:disabled { cursor: default; }
+.horse-board { position: relative; width: min(500px, 100%); aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); overflow: hidden; border: 3px solid #8a442d; border-radius: 8px; background: #eadfc9; }
+.horse-cell { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; align-items: center; min-width: 0; min-height: 0; border: 1px solid rgba(88, 73, 58, 0.16); }
+.horse-cell.horse-track { background: #fffaf0; }
+.horse-cell.horse-safe { background: #f3d87c; }
+.horse-cell.horse-stable { background: #e3c5a5; }
+.horse-token { width: clamp(15px, 3.2vw, 25px); height: clamp(15px, 3.2vw, 25px); padding: 0; border: 1px solid rgba(0,0,0,0.25); border-radius: 50%; color: #fff; font-size: 13px; line-height: 1; text-shadow: 0 1px 2px #333; cursor: pointer; }
+.horse-token.red { background: #c62828; }
+.horse-token.blue { background: #1f5faa; }
+.horse-token.yellow { background: #d3a31f; color: #352700; text-shadow: none; }
+.horse-token.green { background: #2e7d4a; }
+.horse-token:disabled { cursor: default; }
+.horse-score { margin: 0; color: #4a3a2a; font-size: 12px; font-weight: 700; text-align: center; }
+.horse-center { position: absolute; inset: 25%; display: grid; place-items: center; padding: 12px; border: 2px solid #b9a98b; border-radius: 10px; background: #fffaf0; color: #665340; font-size: 12px; line-height: 1.4; text-align: center; pointer-events: none; }
+@media (max-width: 640px) {
+  #yardGameView { padding: 5px; }
+  .yard-game-card { max-height: 97vh; padding: 10px; border-width: 3px; border-radius: 14px; }
+  .yard-game-head { padding-bottom: 8px; }
+  .yard-game-head h2 { font-size: 20px; }
+  .yard-game-tab { padding: 8px 2px; font-size: 12px; }
+  .yard-game-heading { margin-top: 9px; }
+  .yard-game-heading h3 { font-size: 17px; }
+  .yard-game-status { font-size: 12px; }
+  .horse-center { padding: 5px; font-size: 10px; }
 }
 
 /* ---- trò chuyện riêng 1-1 ---- */
