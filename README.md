@@ -12,14 +12,14 @@ Công nghệ giống trang 12tranphu.mango.pro.vn: **Three.js r170 + JavaScript 
 ./start.sh              # python3 -m http.server 8765
 # Mở http://localhost:8765?nosync
 ```
-Chế độ này **không** có người chơi khác và sổ lưu bút chung (chỉ lưu máy bạn).
+Chế độ này **không** có người chơi khác (chỉ lưu máy bạn).
 
 ### Nhiều người (khuyên dùng)
 ```bash
 npm install             # một lần
 npm run dev             # Wrangler — http://localhost:8787
 ```
-Mở **hai tab** cùng `http://localhost:8787` để thử thấy nhau trên sân, chat (`T`), sổ lưu bút chung.
+Mở **hai tab** cùng `http://localhost:8787` để thử thấy nhau trên sân và chat (`T`).
 
 ## Nhớ nhân vật (laptop / điện thoại)
 
@@ -45,7 +45,7 @@ Không cần cài app riêng — mở **cùng link web** (local hoặc sau khi `
 | Zoom | **Hai ngón** kéo ra/thu vào |
 | Nhảy / tương tác | Nút **Nhảy** và **E** góc phải dưới |
 | Bản đồ, chat sân, lớp học | Thanh **Bản đồ / Chat / Lớp** phía dưới (thay phím M, T, C) |
-| Sổ lưu bút, đổi nhân vật | Góc trên trái như máy tính |
+| Đổi nhân vật | Góc trên trái như máy tính |
 
 **Thêm vào màn hình chính:** Safari → Chia sẻ → *Thêm vào Màn hình chính* (có `manifest.webmanifest` + icon). Gọi thoại WebRTC cần **https** (bản deploy Cloudflare) hoặc localhost — mở bằng IP trong mạng wifi vẫn chat được nhưng trình duyệt có thể chặn micro.
 
@@ -86,7 +86,7 @@ Dự án hiện chọn **một Worker Cloudflare** vì: không server riêng, HT
 ## Gặp nhau trên sân
 - Nếu không thao tác trong **3 phút**, kết nối sân chung sẽ tạm ngắt để tiết kiệm pin và băng thông; bấm **Kết nối lại ngay** để vào lại.
 - **Qizz Game:** tương tác với bảng Qizz trong sân để chọn Math Game, History Game hoặc English Game. Math Game là phòng chung tối đa 40 người, gồm 15 câu Tích phân và bảng điểm; History Game và English Game có 55 câu hỏi mỗi bộ, thứ tự được xáo trộn mỗi lượt chơi trên thiết bị.
-- **Kỳ Đài Học Trò:** sân mở, thu gọn và không hàng rào ở gần lửa trại phía sau Nhà học chính, có bàn Caro, Cá Ngựa, Cờ Vua và biển chỉ dẫn. Đi tới từng bàn, nhấn **E** để chơi trên cùng thiết bị hoặc chọn **Đấu với máy** để máy tự đi sau lượt của bạn; Caro nối 5 quân, Cá Ngựa hỗ trợ 2 hoặc 4 người chơi tại chỗ, Cờ Vua có nước đi hợp lệ, nhập thành, bắt tốt qua đường, phong hậu và kết thúc chiếu hết.
+- **Kỳ Đài Học Trò:** sân mở, thu gọn và không hàng rào ở gần lửa trại phía sau Nhà học chính, có bàn Caro, Cá Ngựa, Cờ Vua và biển chỉ dẫn. Đi tới từng bàn, nhấn **E** để chơi trên cùng thiết bị hoặc chọn **Đấu với máy** để máy tự đi sau lượt của bạn; Caro nối 5 quân, Cá Ngựa hỗ trợ 2 hoặc 4 người chơi tại chỗ, Cờ Vua có nước đi hợp lệ, nhập thành, bắt tốt qua đường, phong hậu và kết thúc chiếu hết. Nút **Cờ Caro** trên HUD (hoặc nút **Caro** trên điện thoại) mở danh sách người online để mời đấu trực tuyến.
 - **Chat sân (T):** chỉ người trong 15 m nhận; hiện bong bóng trên đầu người nói.
 - **Trò chuyện riêng:** đứng cạnh người khác → **E: Mời … trò chuyện** → người kia **Đồng ý** mới mở khung nhắn riêng (lời mời hết hạn sau 30 s).
 - **Gọi thoại:** trong khung riêng bấm **📞 Gọi thoại** → người kia bấm **Nghe**. WebRTC ngang hàng (STUN Google/Cloudflare, không TURN), máy chủ chỉ chuyển tín hiệu. Micro cần https hoặc localhost.

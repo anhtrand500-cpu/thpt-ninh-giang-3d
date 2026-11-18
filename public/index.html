@@ -29,8 +29,7 @@
       <output id="musicVolumeLabel" for="musicVolume">60%</output>
     </div>
     <div class="count">Lưu bút: <b id="count">0</b>/<span id="total">10</span></div>
-    <button id="bookBtn" type="button" class="pill" title="Sổ lưu bút chung">Sổ LB</button>
-    <button id="bxhBtn" type="button" class="pill" title="Bảng xếp hạng sưu tập lưu bút">BXH</button>
+    <button id="caroInviteBtn" type="button" class="pill" title="Mời người đang online đấu cờ Caro">♟ Cờ Caro</button>
     <button id="classBtn" type="button" class="pill" title="Lớp học của bạn — mời bạn bè, trò chuyện trong lớp (phím C)">Lớp học<i id="classBadge" hidden></i></button>
     <div class="online" title="Cựu HS/GV đang online"><span id="netDot" class="dot off"></span><b id="onlineN">—</b></div>
     <button id="profileBtn" type="button" title="Đổi nhân vật"><b id="hudName"></b><span id="hudInfo"></span></button>
@@ -48,20 +47,6 @@
     </div>
   </div>
   <div id="help">WASD: đi · Shift: chạy · Space: nhảy · E: tương tác / ngồi sau xe bạn · Nhà xe: lấy/trả xe đạp · B: xuống xe hoặc ghế sau · 1–3 tư thế · 4 vỗ tay · 5 bắn tym · V toàn cảnh · P pháo hoa · M bản đồ · T chat · C lớp</div>
-
-  <div id="guestbook" hidden>
-    <div class="card gb">
-      <small>Sổ lưu bút chung</small>
-      <h2>Lời nhắn gửi trường</h2>
-      <p class="gb-hint">Giống trang 12 Trần Phú — ai vào cùng lúc đều đọc được. Mỗi lần gửi cách nhau khoảng 30 giây.</p>
-      <ul id="gbList"></ul>
-      <form id="gbForm" class="gb-form" autocomplete="off">
-        <input id="gbInput" maxlength="160" placeholder="Viết lời nhắn… (tối đa 160 ký tự)">
-        <button type="submit" class="primary">Gửi</button>
-      </form>
-      <button id="gbClose" type="button">Đóng <kbd>E</kbd></button>
-    </div>
-  </div>
 
   <div id="classPanel" hidden>
     <div class="card cls">
@@ -203,6 +188,48 @@
     </section>
   </div>
 
+  <div id="caroInvitePanel" hidden role="dialog" aria-modal="true" aria-labelledby="caroInviteTitle">
+    <section class="caro-invite-card">
+      <header class="caro-invite-head">
+        <div>
+          <small>GIAO LƯU</small>
+          <h2 id="caroInviteTitle">Mời đấu cờ Caro</h2>
+        </div>
+        <button id="caroInviteClose" class="cls-x" type="button" aria-label="Đóng">✕</button>
+      </header>
+      <p class="caro-invite-hint">Chọn một người đang online để thách đấu. Nối 5 quân liên tiếp thì thắng.</p>
+      <p id="caroInviteStatus" class="caro-invite-status" role="status" aria-live="polite"></p>
+      <ul id="caroPlayerList" class="caro-player-list"></ul>
+    </section>
+  </div>
+
+  <div id="caroIncoming" hidden role="dialog" aria-modal="true" aria-labelledby="caroIncomingTitle">
+    <section class="caro-incoming-card">
+      <small>THÁCH ĐẤU CỜ CARO</small>
+      <h2 id="caroIncomingTitle">Bạn nhận được lời mời</h2>
+      <p id="caroIncomingText"></p>
+      <div class="caro-incoming-actions">
+        <button id="caroDecline" type="button" class="ghost">Từ chối</button>
+        <button id="caroAccept" type="button" class="primary">Chấp nhận</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="caroOnlineGame" hidden role="dialog" aria-modal="true" aria-labelledby="caroGameTitle">
+    <section class="caro-online-card">
+      <header class="caro-invite-head">
+        <div>
+          <small>ĐẤU TRỰC TUYẾN · CỜ CARO</small>
+          <h2 id="caroGameTitle"></h2>
+        </div>
+        <button id="caroGameEnd" class="cls-x" type="button" aria-label="Rời ván">✕</button>
+      </header>
+      <p id="caroGameStatus" class="caro-game-status" role="status" aria-live="polite"></p>
+      <div id="caroGameBoard" class="caro-online-board" role="grid" aria-label="Bàn cờ Caro"></div>
+      <p class="caro-online-help">Bạn đánh <b>X</b>; đối thủ đánh <b>O</b>. Nối 5 quân liên tiếp để thắng.</p>
+    </section>
+  </div>
+
   <div id="talkInvite" hidden>
     <p id="tiText"></p>
     <div><button id="tiYes" type="button">Đồng ý</button><button id="tiNo" type="button">Từ chối</button></div>
@@ -253,21 +280,11 @@
     </div>
   </div>
 
-  <div id="leaderboard" hidden>
-    <div class="card lb">
-      <button id="lbClose" class="cls-x" type="button" aria-label="Đóng">✕</button>
-      <small>Thi đua kỷ niệm</small>
-      <h2>Bảng xếp hạng</h2>
-      <p class="gb-hint">Ai thu thập nhiều trang lưu bút nhất (khi chơi online). Ghi nhận theo tên nhân vật của bạn.</p>
-      <ol id="lbList"></ol>
-      <button id="lbClose2" type="button">Đóng <kbd>Esc</kbd></button>
-    </div>
-  </div>
-
   <div id="joy" aria-label="Joystick di chuyển" role="application"><div id="knob"></div></div>
   <nav id="mobileBar" aria-label="Điều khiển điện thoại">
     <button id="mbMap" type="button">Bản đồ</button>
     <button id="mbPose" type="button" title="Ngồi → nằm → nhảy múa → chào cờ">Tư thế</button>
+    <button id="mbCaro" type="button">Caro</button>
     <button id="mbChat" type="button">Chat</button>
     <button id="mbClass" type="button">Lớp</button>
   </nav>
@@ -294,7 +311,7 @@
         <p>Dạo quanh khuôn viên Trường THPT Ninh Giang, số 193 Nguyễn Lương Bằng, thị trấn Ninh Giang. Trường thành lập 1965.</p>
         <p><b>Nhiệm vụ:</b> tìm <b>10</b> trang lưu bút / kỷ vật đang phát sáng, trò chuyện với bạn bè và thầy cô, đánh kẻng ra chơi và trống vào lớp.</p>
         <p><b>Sân trường:</b> sút bóng giữa sân trong; <kbd>E</kbd> tại vài điểm để <b>xem album ảnh thật</b> trường; <kbd>P</kbd> bắn pháo hoa trên sân khấu; chào cờ 7h (thử: <code>?chuaco</code>).</p>
-        <p><b>Cùng nhau:</b> online thấy người khác trên sân; sổ lưu bút chung; nút <b>BXH</b> xem ai sưu tập nhiều nhất; <kbd>T</kbd> chat gần.</p>
+        <p><b>Cùng nhau:</b> online thấy người khác trên sân; <kbd>T</kbd> chat gần.</p>
         <p>Đến bảng <b>Qizz Game</b> trong sân trường để chọn Math Game, History Game hoặc English Game.</p>
         <ul class="keys">
           <li><kbd>W A S D</kbd> di chuyển, <kbd>Shift</kbd> chạy, <kbd>Space</kbd> nhảy</li>
@@ -340,14 +357,12 @@
               <label class="field"><span id="lblYear">Niên khóa</span><select id="pfYear"></select></label>
             </div>
             <datalist id="pfClassList"></datalist>
-            <label class="field"><span>Lời nhắn gửi trường <small id="pfNoteCount">0/64</small></span>
-              <input id="pfNote" maxlength="64" placeholder="Không bắt buộc"></label>
             <p id="pfSummary" class="pf-summary"></p>
             <div class="pf-actions">
               <button id="backBtn" type="button" class="ghost">Quay lại</button>
               <button id="startBtn" type="submit" class="primary" disabled>Vào trường</button>
             </div>
-            <p class="note">Thông tin nhân vật được lưu trên máy bạn — lần sau vào lại không cần nhập lại. Lời nhắn (nếu có) đăng lên <b>sổ lưu bút chung</b> khi chơi online.</p>
+            <p class="note">Thông tin nhân vật được lưu trên máy bạn — lần sau vào lại không cần nhập lại.</p>
           </div>
         </form>
       </section>

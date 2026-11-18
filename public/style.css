@@ -62,27 +62,10 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 
 #dialog .dialog-donation p { margin: 0 0 10px; color: #8e2a22; font-size: 14px; font-weight: 700; }
 #dialog .dialog-donation img { display: block; width: min(320px, 100%); max-height: 50vh; object-fit: contain; margin: 0 auto; border-radius: 8px; background: #fff; }
 
-#galleryView, #leaderboard { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.38); z-index: 30; }
-#galleryView .gal, #leaderboard .lb { width: min(560px, 94vw); max-height: 88vh; overflow: auto; background: #fffaf0; border-radius: 16px; padding: 22px 24px 18px; border-top: 6px solid #c62828; box-shadow: 0 18px 50px rgba(0,0,0,0.3); position: relative; }
+#galleryView { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.38); z-index: 30; }
+#galleryView .gal { width: min(560px, 94vw); max-height: 88vh; overflow: auto; background: #fffaf0; border-radius: 16px; padding: 22px 24px 18px; border-top: 6px solid #c62828; box-shadow: 0 18px 50px rgba(0,0,0,0.3); position: relative; }
 #galleryView img { display: block; width: 100%; max-height: 52vh; object-fit: contain; border-radius: 10px; margin: 8px 0 14px; background: #e8e0d0; }
-#galleryView button[type="button"]:last-of-type, #leaderboard button#lbClose2 { border: 0; background: #8e2a22; color: #fff; font-size: 14px; padding: 8px 14px; border-radius: 10px; cursor: pointer; float: right; }
-#leaderboard ol { margin: 0 0 14px; padding-left: 1.4rem; max-height: 50vh; overflow: auto; }
-#leaderboard li { padding: 6px 0; border-bottom: 1px solid #ecd9a8; font-size: 14px; line-height: 1.4; }
-#leaderboard li b { color: #8e2a22; }
-#leaderboard li small { display: block; color: #9a8a7a; font-size: 12px; }
-#leaderboard .empty { list-style: none; margin-left: -1.4rem; color: #9a8a7a; font-style: italic; }
-
-#guestbook { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.35); z-index: 30; }
-#guestbook .gb { width: min(520px, 94vw); max-height: 82vh; display: flex; flex-direction: column; }
-.gb-hint { font-size: 13px; color: #6b4b3e; margin: 0 0 12px !important; }
-#gbList { list-style: none; margin: 0 0 12px; padding: 0; overflow: auto; flex: 1; min-height: 120px; max-height: 45vh; }
-#gbList li { border-bottom: 1px solid #ecd9a8; padding: 10px 4px; font-size: 14px; line-height: 1.45; }
-#gbList li b { color: #8e2a22; }
-#gbList li small { display: block; color: #9a8a7a; font-size: 12px; margin-top: 2px; }
-#gbList .empty { color: #9a8a7a; font-style: italic; border: 0; }
-.gb-form { display: flex; gap: 8px; margin-bottom: 12px; }
-.gb-form input { flex: 1; font: inherit; font-size: 15px; padding: 9px 10px; border: 1.5px solid #e2cf9c; border-radius: 9px; }
-.gb-form .primary { width: auto; flex: 0 0 auto; padding: 10px 16px; font-size: 15px; box-shadow: 0 4px 0 #6e1d16; }
+#galleryView button[type="button"]:last-of-type { border: 0; background: #8e2a22; color: #fff; font-size: 14px; padding: 8px 14px; border-radius: 10px; cursor: pointer; float: right; }
 
 #chatBar { position: fixed; left: 50%; bottom: 48px; transform: translateX(-50%); z-index: 20; width: min(480px, 94vw); display: flex; flex-direction: column; gap: 6px; }
 #nearChatLog { list-style: none; margin: 0; padding: 6px 8px; max-height: 120px; overflow: auto; background: rgba(255, 250, 240, 0.94); border-radius: 10px; border: 1.5px solid #ecd9a8; font-size: 13px; line-height: 1.4; }
@@ -238,7 +221,6 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
   body.touch.playing #prompt { bottom: calc(136px + env(safe-area-inset-bottom)); }
   body.touch.playing #chatBar { bottom: calc(132px + env(safe-area-inset-bottom)); }
   body.touch.playing #chatBar input,
-  body.touch.playing #gbInput,
   body.touch.playing #clsMsg { font-size: 16px; }
   #intro .panel { max-height: calc(100dvh - 24px); padding: 18px 18px 20px; }
   #intro h1 { font-size: 28px; }
@@ -246,8 +228,6 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
   #intro .keys { line-height: 1.65; }
   #dialog .card,
   #galleryView .gal,
-  #leaderboard .lb,
-  #guestbook .gb,
   #classPanel .cls,
   #mathGame .math-card,
   #yardGameView .yard-game-card { max-height: calc(100dvh - 20px); }
@@ -481,6 +461,42 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
 #talkInvite button { border: 0; border-radius: 9px; padding: 8px 18px; margin: 0 5px; font-weight: 700; cursor: pointer; font-size: 15px; }
 #tiYes, #tpAccept { background: #2e7d32; color: #fff; }
 #tiNo, #tpRefuse { background: #e0d6c2; color: #5a4636; }
+#caroInvitePanel, #caroOnlineGame { position: fixed; inset: 0; z-index: 85; display: grid; place-items: center; padding: 14px; background: rgba(15, 23, 42, 0.68); }
+.caro-invite-card, .caro-online-card { width: min(520px, 96vw); max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; padding: 16px; border-radius: 16px; background: #fff; box-shadow: 0 18px 55px rgba(0,0,0,0.36); }
+.caro-invite-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.caro-invite-head small, .caro-incoming-card > small { color: #c62828; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; }
+.caro-invite-head h2, .caro-incoming-card h2 { margin: 3px 0 0; color: #172554; font-size: 20px; }
+.caro-invite-head .cls-x { position: static; flex: 0 0 auto; border: 0; }
+.caro-invite-hint { margin: 12px 0 8px; color: #526174; font-size: 13px; line-height: 1.45; }
+.caro-invite-status { min-height: 18px; margin: 0 0 8px; color: #526174; font-size: 12px; }
+.caro-player-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; max-height: 60vh; overflow: auto; margin: 0; padding: 0 4px 2px 0; list-style: none; }
+.caro-player-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 9px; border: 1px solid #d5deeb; border-radius: 9px; background: #edf2f8; }
+.caro-player-details { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.caro-player-details b { overflow: hidden; color: #24344e; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.caro-player-details small { color: #64748b; font-size: 11px; }
+.caro-player-row button, .caro-incoming-actions button { flex: 0 0 auto; border: 0; border-radius: 8px; padding: 8px 12px; background: #c83228; color: #fff; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.caro-player-row button:disabled { background: #94a3b8; cursor: default; }
+#caroIncoming { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; padding: 16px; background: rgba(15, 23, 42, 0.62); }
+.caro-incoming-card { width: min(380px, 94vw); padding: 22px; border-radius: 16px; background: #fff; box-shadow: 0 18px 55px rgba(0,0,0,0.36); }
+.caro-incoming-card p { margin: 12px 0 20px; color: #475569; line-height: 1.5; }
+.caro-incoming-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.caro-incoming-actions .ghost { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; background: #fff; color: #334155; font: inherit; font-weight: 700; }
+.caro-incoming-actions .primary { width: auto; padding: 9px 14px; font-size: 13px; box-shadow: none; }
+.caro-game-status { margin: 12px 0; color: #1e3a8a; font-size: 14px; font-weight: 800; text-align: center; }
+.caro-online-board { width: min(460px, 100%, calc(88vh - 170px)); aspect-ratio: 1; display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); align-self: center; overflow: hidden; border: 2px solid #547bd1; border-radius: 4px; background: #fffdf8; }
+.caro-online-cell { min-width: 0; min-height: 0; display: grid; place-items: center; padding: 0; border: 0; border-right: 1px solid #c8d8f2; border-bottom: 1px solid #c8d8f2; background: transparent; color: #bd3441; font: 900 clamp(9px, 2.5vw, 22px)/1 "Segoe UI Symbol", sans-serif; cursor: pointer; }
+.caro-online-cell.mark-O { color: #24599e; }
+.caro-online-cell:disabled { cursor: default; }
+.caro-online-help { margin: 10px 0 0; color: #64748b; font-size: 12px; text-align: center; }
+.caro-online-card { width: min(540px, 96vw); }
+body.touch.playing #hud #caroInviteBtn { display: none; }
+body.touch.playing #mobileBar #mbCaro { background: rgba(198, 40, 40, 0.94); color: #fff; }
+@media (max-width: 640px) {
+  #caroInvitePanel, #caroOnlineGame { padding: 7px; }
+  .caro-invite-card, .caro-online-card { max-height: 94vh; padding: 12px; }
+  .caro-player-list { max-height: 58vh; }
+  .caro-online-board { width: min(460px, 100%, calc(94vh - 150px)); }
+}
 #talkPanel { position: fixed; left: 14px; bottom: 54px; z-index: 25; width: min(340px, 92vw); background: rgba(255, 250, 240, 0.97); border-radius: 14px; border-top: 5px solid #1f4fa0; box-shadow: 0 10px 30px rgba(0,0,0,0.25); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tp-head b { color: #1f4fa0; font-size: 14px; }

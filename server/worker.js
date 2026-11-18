@@ -9,7 +9,6 @@ const MAX_PLAYERS = 150// Workers Paid — giới hạn phòng san-truong (giả
 const STALE_MS = 45 * 60_000; // đứng yên / tab nền — không quét đá khỏi phòng (chấp nhận lag hơn là disconnect)
 const GHOST_MS = 8 * 60_000;  // socket chưa hello xong quá lâu → dọn
 const SWEEP_MS = 5 * 60_000;  // quét nhẹ, tránh giật khi đông người
-const NOTE_COOLDOWN_MS = 30_000;
 const CHAT_COOLDOWN_MS = 1_200;
 const ACT_COOLDOWN_MS = 5_000;
 const CLASS_MSG_KEEP = 300; // số tin nhắn lưu lại mỗi lớp
@@ -19,6 +18,7 @@ const TALK_REQ_MS = 30_000;  // lời mời hết hạn sau 30 giây
 const VIEW_M = 72;           // đồng bộ vị trí gần — đủ rộng cho sân + hành lang nhà chính
 const SNAP_MS = 2400;
 const MV_MAX_PER_S = 12;
+const CARO_INVITE_MS = 30_000;
 
 // Mã lớp = tên lớp + năm nhập học, ví dụ 12A1-2011 (dùng làm link mời ?lop=12A1-2011).
 function classCode(className, year) {
@@ -59,6 +59,22 @@ function cleanPos(p) {
 function dist(a, b) {
   if (!a || !b) return Infinity;
   return Math.hypot(a[0] - b[0], a[2] - b[2]) + Math.abs((a[1] || 0) - (b[1] || 0));
+}
+
+function caroHasFive(cells, index, mark) {
+  const row = Math.floor(index / 15), col = index % 15;
+  return [[1, 0], [0, 1], [1, 1], [1, -1]].some(([dr, dc]) => {
+    let count = 1;
+    for (const sign of [-1, 1]) {
+      let r = row + dr * sign, c = col + dc * sign;
+      while (r >= 0 && r < 15 && c >= 0 && c < 15 && cells[r * 15 + c] === mark) {
+        count++;
+        r += dr * sign;
+        c += dc * sign;
+      }
+    }
+    return count >= 5;
+  });
 }
 
 // Ngày theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD.
@@ -114,8 +130,13 @@ export class SchoolRoom extends DurableObject {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     this.state = new Map(); // WebSocket -> trạng thái (dựng lại từ attachment sau khi ngủ đông)
     this.mathGame = null;
+    this.caroGames = {};
+    this.caroInvites = {};
+    this.caroQueue = Promise.resolve();
     ctx.blockConcurrencyWhile(async () => {
       this.mathGame = await ctx.storage.get('mathGame') || null;
+      this.caroGames = await ctx.storage.get('caroGames') || {};
+      this.caroInvites = await ctx.storage.get('caroInvites') || {};
       if ((await ctx.storage.getAlarm()) === null && (ctx.getWebSockets().length || this.mathGameHasDeadline())) {
         await this.scheduleNextAlarm();
       }
@@ -177,13 +198,6 @@ export class SchoolRoom extends DurableObject {
 
   async fetch(request) {
     const url = new URL(request.url);
-    if (url.pathname === '/api/guestbook') return Response.json(this.recentNotes(60));
-    if (url.pathname === '/api/leaderboard') {
-      const rows = this.sql.exec(
-        'SELECT name, info, pages, notes FROM scores ORDER BY pages DESC, notes DESC, ts ASC LIMIT 30',
-      ).toArray();
-      return Response.json(rows);
-    }
     if (url.pathname === '/api/stats') {
       const one = (q, ...a) => Object.values(this.sql.exec(q, ...a).one())[0];
       const today = dayVN(Date.now());
@@ -243,7 +257,7 @@ export class SchoolRoom extends DurableObject {
 
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
-    const s = { id: Math.floor(Math.random() * 2 ** 31), profile: null, p: [0, 0, 48, Math.PI, 0], savedAt: 0, openedAt: Date.now(), yardChatAt: 0, classChatAt: 0, talkAt: 0, noteAt: 0, actAt: 0, win: 0, winN: 0 };
+    const s = { id: Math.floor(Math.random() * 2 ** 31), profile: null, p: [0, 0, 48, Math.PI, 0], savedAt: 0, openedAt: Date.now(), yardChatAt: 0, classChatAt: 0, talkAt: 0, actAt: 0, win: 0, winN: 0 };
     server.serializeAttachment(s);
     this.state.set(server, s);
     if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + SWEEP_MS);
@@ -305,6 +319,186 @@ export class SchoolRoom extends DurableObject {
 
   classHistory(code) {
     return this.sql.exec('SELECT id, name, info, text, ts FROM class_msgs WHERE code = ? ORDER BY id DESC LIMIT 60', code).toArray().reverse();
+  }
+
+  caroBusy(id) {
+    return Object.values(this.caroGames).some(game => game.xId === id || game.oId === id)
+      || Object.values(this.caroInvites).some(invite => invite.expiresAt > Date.now() && (invite.from === id || invite.to === id));
+  }
+
+  async saveCaroState() {
+    await Promise.all([
+      this.ctx.storage.put('caroGames', this.caroGames),
+      this.ctx.storage.put('caroInvites', this.caroInvites),
+    ]);
+  }
+
+  runCaro(action) {
+    const result = this.caroQueue.then(action);
+    this.caroQueue = result.catch(error => {
+      console.error('Caro operation failed:', error);
+    });
+    return result;
+  }
+
+  sendCaroRoster(ws) {
+    const players = this.sockets()
+      .filter(([, player]) => player.profile && !player.left)
+      .map(([, player]) => ({
+        id: player.id,
+        name: displayName(player.profile),
+        info: profileInfo(player.profile),
+        busy: player.id !== this.get(ws).id && this.caroBusy(player.id),
+      }));
+    this.tell(ws, { t: 'caroPlayers', players });
+  }
+
+  async listCaroPlayers(ws, s) {
+    await this.expireCaroInvites();
+    this.sendCaroRoster(ws);
+    const game = Object.values(this.caroGames).find(item => item.status === 'active' && (item.xId === s.id || item.oId === s.id));
+    this.tell(ws, { t: 'caroCurrent', game: game ? { ...game, yourMark: game.xId === s.id ? 'X' : 'O' } : null });
+  }
+
+  async expireCaroInvites() {
+    let changed = false;
+    for (const [inviteId, invite] of Object.entries(this.caroInvites)) {
+      if (invite.expiresAt > Date.now()) continue;
+      delete this.caroInvites[inviteId];
+      changed = true;
+      const [fromWs] = this.byId(invite.from);
+      if (fromWs) this.tell(fromWs, { t: 'caroEnd', inviteId, reason: 'expired' });
+      const [toWs] = this.byId(invite.to);
+      if (toWs) this.tell(toWs, { t: 'caroEnd', inviteId, reason: 'expired' });
+    }
+    if (changed) await this.saveCaroState();
+  }
+
+  sendCaroState(game) {
+    for (const [id, mark] of [[game.xId, 'X'], [game.oId, 'O']]) {
+      const [ws] = this.byId(id);
+      if (ws) this.tell(ws, { t: 'caroState', game: { ...game, yourMark: mark } });
+    }
+  }
+
+  async handleCaroInvite(ws, s, toId) {
+    if (!s.profile || !Number.isSafeInteger(toId) || toId === s.id) return;
+    await this.expireCaroInvites();
+    const [targetWs, target] = this.byId(toId);
+    if (!targetWs || !target?.profile || target.left) {
+      this.tell(ws, { t: 'caroError', msg: 'Người chơi này hiện không còn online.' });
+      return;
+    }
+    if (this.caroBusy(s.id) || this.caroBusy(target.id)) {
+      this.tell(ws, { t: 'caroError', msg: 'Bạn hoặc người chơi này đang có lời mời hay ván Caro chưa kết thúc.' });
+      return;
+    }
+    const inviteId = crypto.randomUUID();
+    this.caroInvites[inviteId] = { from: s.id, to: target.id, expiresAt: Date.now() + CARO_INVITE_MS };
+    await this.saveCaroState();
+    this.tell(targetWs, {
+      t: 'caroInvite',
+      inviteId,
+      from: s.id,
+      name: displayName(s.profile),
+      info: profileInfo(s.profile),
+    });
+    this.tell(ws, { t: 'caroInviteSent', inviteId, id: target.id });
+  }
+
+  async handleCaroAnswer(ws, s, inviteId, accepted) {
+    if (!s.profile || typeof inviteId !== 'string') return;
+    const invite = this.caroInvites[inviteId];
+    if (!invite || invite.to !== s.id || invite.expiresAt <= Date.now()) {
+      delete this.caroInvites[inviteId];
+      await this.saveCaroState();
+      this.tell(ws, { t: 'caroError', msg: 'Lời mời này đã hết hạn.' });
+      return;
+    }
+    const [fromWs, from] = this.byId(invite.from);
+    delete this.caroInvites[inviteId];
+    if (!fromWs || !from?.profile || from.left) {
+      await this.saveCaroState();
+      this.tell(ws, { t: 'caroError', msg: 'Người mời đã rời sân.' });
+      return;
+    }
+    if (!accepted) {
+      await this.saveCaroState();
+      this.tell(fromWs, { t: 'caroDeclined', id: s.id });
+      return;
+    }
+    if (this.caroBusy(s.id) || this.caroBusy(from.id)) {
+      await this.saveCaroState();
+      this.tell(ws, { t: 'caroError', msg: 'Một trong hai người đang có ván đấu khác.' });
+      this.tell(fromWs, { t: 'caroError', msg: 'Không thể bắt đầu ván Caro lúc này.' });
+      return;
+    }
+    const game = {
+      id: crypto.randomUUID(),
+      xId: invite.from,
+      oId: s.id,
+      xName: displayName(from.profile),
+      oName: displayName(s.profile),
+      cells: Array(225).fill(''),
+      turn: 'X',
+      status: 'active',
+      winner: null,
+    };
+    this.caroGames[game.id] = game;
+    await this.saveCaroState();
+    this.sendCaroState(game);
+  }
+
+  async handleCaroMove(ws, s, gameId, index) {
+    if (!s.profile || typeof gameId !== 'string' || !Number.isSafeInteger(index) || index < 0 || index >= 225) return;
+    const game = this.caroGames[gameId];
+    if (!game || game.status !== 'active') return;
+    const mark = game.xId === s.id ? 'X' : game.oId === s.id ? 'O' : null;
+    if (!mark || game.turn !== mark || game.cells[index]) return;
+    game.cells[index] = mark;
+    if (caroHasFive(game.cells, index, mark)) {
+      game.status = 'finished';
+      game.winner = mark;
+    } else if (game.cells.every(Boolean)) {
+      game.status = 'finished';
+      game.winner = 'draw';
+    } else {
+      game.turn = mark === 'X' ? 'O' : 'X';
+    }
+    await this.saveCaroState();
+    this.sendCaroState(game);
+  }
+
+  async endCaroGame(gameId, playerId, reason = 'left') {
+    const game = this.caroGames[gameId];
+    if (!game || (game.xId !== playerId && game.oId !== playerId)) return;
+    delete this.caroGames[gameId];
+    await this.saveCaroState();
+    const otherId = game.xId === playerId ? game.oId : game.xId;
+    const [otherWs] = this.byId(otherId);
+    if (otherWs) this.tell(otherWs, { t: 'caroEnd', gameId, reason });
+  }
+
+  async cleanupCaroPlayer(playerId) {
+    let changed = false;
+    for (const [inviteId, invite] of Object.entries(this.caroInvites)) {
+      if (invite.from !== playerId && invite.to !== playerId) continue;
+      delete this.caroInvites[inviteId];
+      changed = true;
+      const otherId = invite.from === playerId ? invite.to : invite.from;
+      const [otherWs] = this.byId(otherId);
+      if (otherWs) this.tell(otherWs, { t: 'caroEnd', inviteId, reason: 'offline' });
+    }
+    for (const gameId of Object.keys(this.caroGames)) {
+      const game = this.caroGames[gameId];
+      if (game.xId !== playerId && game.oId !== playerId) continue;
+      delete this.caroGames[gameId];
+      changed = true;
+      const otherId = game.xId === playerId ? game.oId : game.xId;
+      const [otherWs] = this.byId(otherId);
+      if (otherWs) this.tell(otherWs, { t: 'caroEnd', gameId, reason: 'offline' });
+    }
+    if (changed) await this.saveCaroState();
   }
 
   newMathGame() {
@@ -517,10 +711,6 @@ export class SchoolRoom extends DurableObject {
     this.sendToClass(info.code, { t: 'classMembers', code: info.code, members: this.classMembers(info.code) });
   }
 
-  recentNotes(n) {
-    return this.sql.exec('SELECT id, name, info, text, ts FROM notes ORDER BY id DESC LIMIT ?', n).toArray();
-  }
-
   async webSocketMessage(ws, raw) {
     if (typeof raw !== 'string' || raw.length > 24000) return;
     let m;
@@ -554,7 +744,6 @@ export class SchoolRoom extends DurableObject {
             id: s.id,
             players: all.filter(x => dist(x.p, s.p) <= VIEW_M).map(pub),
             online: this.onlineCount(),
-            notes: this.recentNotes(40),
           }));
           this.broadcastNear({ t: 'join', ...pub(s), online: this.onlineCount() }, s.p, s.id);
           this.broadcast({ t: 'presence', online: this.onlineCount() }, s.id);
@@ -675,22 +864,6 @@ export class SchoolRoom extends DurableObject {
         this.endTalk(ws, s);
         break;
       }
-      case 'note': {
-        if (!s.profile) return;
-        const text = clean(m.text, 160);
-        if (!text) return;
-        if (now - s.noteAt < NOTE_COOLDOWN_MS) {
-          ws.send(JSON.stringify({ t: 'err', msg: 'Bạn vừa viết lưu bút, đợi một chút rồi viết tiếp nhé.' }));
-          return;
-        }
-        s.noteAt = now;
-        this.save(ws, s);
-        const name = displayName(s.profile);
-        const info = profileInfo(s.profile);
-        const row = this.sql.exec('INSERT INTO notes (name, info, text, ts) VALUES (?, ?, ?, ?) RETURNING id', name, info, text, now).one();
-        this.broadcast({ t: 'note', note: { id: row.id, name, info, text, ts: now } });
-        break;
-      }
       case 'classCreate': {
         if (!s.profile) return;
         const code = classCode(m.className, m.year);
@@ -709,6 +882,26 @@ export class SchoolRoom extends DurableObject {
       }
       case 'mathJoin': {
         await this.joinMathGame(ws, s, now);
+        break;
+      }
+      case 'caroList': {
+        await this.runCaro(() => this.listCaroPlayers(ws, s));
+        break;
+      }
+      case 'caroInvite': {
+        await this.runCaro(() => this.handleCaroInvite(ws, s, m.to));
+        break;
+      }
+      case 'caroAnswer': {
+        await this.runCaro(() => this.handleCaroAnswer(ws, s, m.inviteId, m.accepted === true));
+        break;
+      }
+      case 'caroMove': {
+        await this.runCaro(() => this.handleCaroMove(ws, s, m.gameId, m.index));
+        break;
+      }
+      case 'caroEnd': {
+        await this.runCaro(() => this.endCaroGame(m.gameId, s.id));
         break;
       }
       case 'mathStart': {
@@ -885,6 +1078,7 @@ export class SchoolRoom extends DurableObject {
   async leave(ws) {
     const s = this.get(ws);
     if (s.left) return; // đã rời (quét ma rồi webSocketClose gọi lại)
+    await this.runCaro(() => this.cleanupCaroPlayer(s.id));
     this.releaseBikeSeats(ws, s);
     s.left = true;
     try { ws.serializeAttachment(s); } catch { /* socket đã đóng */ }

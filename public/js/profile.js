@@ -7,7 +7,7 @@ const FIRST_YEAR = 1961;
 const LAST_YEAR = new Date().getFullYear();
 const SUBJECTS = ['Toán', 'Ngữ văn', 'Tiếng Anh', 'Vật lí', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lí', 'GDKT&PL', 'Tin học', 'Công nghệ', 'Thể dục', 'GDQP-AN', 'Khác'];
 
-export const DEFAULT_PROFILE = { role: 'student', gender: 'male', season: 'summer', name: 'Khách', className: '12A1', year: '2015', subject: 'Toán', note: '' };
+export const DEFAULT_PROFILE = { role: 'student', gender: 'male', season: 'summer', name: 'Khách', className: '12A1', year: '2015', subject: 'Toán' };
 
 export function loadProfile() {
   try {
@@ -91,7 +91,6 @@ export function setupProfileForm({ onSubmit }) {
       className: $('pfClass').value.trim().toUpperCase(),
       year: yearSel.value,
       subject: $('pfSubject').value,
-      note: $('pfNote').value.trim(),
     };
   }
 
@@ -104,7 +103,6 @@ export function setupProfileForm({ onSubmit }) {
     $('pfClass').value = p.className || '';
     yearSel.value = p.year || '2015';
     $('pfSubject').value = p.subject || 'Toán';
-    $('pfNote').value = p.note || '';
   }
 
   function valid(p) {
@@ -154,7 +152,6 @@ export function setupProfileForm({ onSubmit }) {
       : 'Đồng phục mùa hè: áo sơ mi trắng, quần xanh đậm.';
     $('lblYear').textContent = teacher ? 'Năm về trường công tác' : 'Niên khóa';
     $('lblName').textContent = teacher ? `Họ và tên ${p.gender === 'female' ? 'cô' : 'thầy'}` : 'Họ và tên';
-    $('pfNoteCount').textContent = `${p.note.length}/64`;
     const err = valid(p);
     $('startBtn').disabled = !!err;
     $('pfSummary').textContent = err || (teacher

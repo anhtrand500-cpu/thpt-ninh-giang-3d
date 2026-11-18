@@ -41,10 +41,8 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
   let reconnectTimer = null;
   let reconnectAttempts = 0;
   let reconnectEnabled = true;
-  let noteSent = false;
   let myId = null;
   const remotes = new Map();
-  const notes = [];
   // lớp đang tham gia: lấy từ link mời ?lop=MÃ, nếu không thì lớp đã vào lần trước
   const CLASS_KEY = 'ninhgiang-class';
   let classCode = (new URLSearchParams(location.search).get('lop') || localStorage.getItem(CLASS_KEY) || '').toUpperCase() || null;
@@ -183,15 +181,11 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
           callbacks.onBikeSeat?.({ driverId: getPlayer().passengerOf, passengerId: myId, seated: false });
         }
         setStatus('online');
-        notes.length = 0;
-        for (const n of m.notes || []) notes.push(n);
-        callbacks.onNotes?.(notes.slice());
         for (const pl of m.players || []) {
           const r = ensureRemote(pl.id, pl.profile);
           applyPos(r, pl.p);
         }
         callbacks.onOnline?.(m.online ?? 1 + (m.players?.length || 0));
-        sendProfileNote();
         syncClassFromProfile();
         break;
       case 'snap':
@@ -239,6 +233,30 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
       case 'mathError':
         callbacks.onMathGameError?.(m.msg);
         break;
+      case 'caroPlayers':
+        callbacks.onCaroPlayers?.(m.players || []);
+        break;
+      case 'caroCurrent':
+        callbacks.onCaroCurrent?.(m.game || null);
+        break;
+      case 'caroInvite':
+        callbacks.onCaroInvite?.(m);
+        break;
+      case 'caroInviteSent':
+        callbacks.onCaroInviteSent?.(m);
+        break;
+      case 'caroDeclined':
+        callbacks.onCaroDeclined?.(m);
+        break;
+      case 'caroState':
+        callbacks.onCaroState?.(m.game);
+        break;
+      case 'caroEnd':
+        callbacks.onCaroEnd?.(m);
+        break;
+      case 'caroError':
+        callbacks.onCaroError?.(m.msg);
+        break;
       case 'join': {
         const r = ensureRemote(m.id, m.profile);
         applyPos(r, m.p);
@@ -253,6 +271,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
       case 'leave':
         removeRemote(m.id);
         if (m.online != null) callbacks.onOnline?.(m.online);
+        callbacks.onLeave?.(m);
         break;
       case 'mv': {
         const r = remotes.get(m.id);
@@ -271,13 +290,6 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
         callbacks.onChat?.(m);
         break;
       }
-      case 'note':
-        if (m.note) {
-          notes.unshift(m.note);
-          if (notes.length > 80) notes.length = 80;
-          callbacks.onNotes?.(notes.slice());
-        }
-        break;
       case 'act':
         callbacks.onAct?.(m);
         break;
@@ -330,13 +342,6 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     send({ t: 'hello', profile: getProfile(), p: packPos(getPlayer()) });
   }
 
-  function sendProfileNote() {
-    if (noteSent) return;
-    const text = (getProfile().note || '').trim();
-    if (!text) return;
-    if (send({ t: 'note', text })) noteSent = true;
-  }
-
   /** Vào phòng lớp theo ?lop=, hoặc tự tạo + vào theo lớp & niên khóa trong hồ sơ học sinh. */
   function syncClassFromProfile(opts = {}) {
     if (!connected) return false;
@@ -383,7 +388,6 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     socket.onopen = () => {
       if (ws !== socket) return;
       reconnectAttempts = 0;
-      noteSent = false;
       sendHello();
       clearInterval(pingTimer);
       pingTimer = setInterval(() => {
@@ -522,14 +526,11 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     chat(text) {
       return send({ t: 'chat', text });
     },
-    note(text) {
-      return send({ t: 'note', text });
-    },
     act(kind) {
       return send({ t: 'act', kind });
     },
-    reportStats(pages, notes) {
-      return send({ t: 'stats', pages: Math.max(0, pages | 0), notes: Math.max(0, notes | 0) });
+    reportStats(pages) {
+      return send({ t: 'stats', pages: Math.max(0, pages | 0), notes: 0 });
     },
     syncClassFromProfile,
     classCreate(className, year) {
@@ -581,6 +582,21 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     mathRematch() {
       return send({ t: 'mathRematch' });
     },
+    caroList() {
+      return send({ t: 'caroList' });
+    },
+    caroInvite(id) {
+      return send({ t: 'caroInvite', to: id });
+    },
+    caroAnswer(inviteId, accepted) {
+      return send({ t: 'caroAnswer', inviteId, accepted });
+    },
+    caroMove(gameId, index) {
+      return send({ t: 'caroMove', gameId, index });
+    },
+    caroEnd(gameId) {
+      return send({ t: 'caroEnd', gameId });
+    },
     get classInfo() {
       return classInfo;
     },
@@ -589,8 +605,5 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     },
     tick,
     remotes,
-    get notes() {
-      return notes;
-    },
   };
 }

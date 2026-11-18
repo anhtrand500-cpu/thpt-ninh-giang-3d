@@ -116,7 +116,7 @@ const TOTAL = world.collectibles.length;
 $('total').textContent = TOTAL;
 function pushStats() {
   if (!started) return;
-  mp.reportStats?.(collected, mp.notes?.length ?? 0);
+  mp.reportStats?.(collected);
 }
 const exteriorBounds = { minX: -158, maxX: 95, minZ: -110, maxZ: 52.6 };
 const col = new Collision(world.colliders, exteriorBounds);
@@ -216,7 +216,7 @@ function clearPlayerPose() {
 
 function setPlayerPose(name) {
   if (!started || !player.grounded) return;
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen) return;
+  if (dialogOpen || menuOpen || chatOpen || classOpen) return;
   if (player.pose === name) {
     clearPlayerPose();
     return;
@@ -400,12 +400,15 @@ const overviewCameraPosition = new THREE.Vector3();
 const overviewRotationSpeed = 2 * Math.PI / 75;
 const followCameraPosition = new THREE.Vector3();
 const blendedCameraTarget = new THREE.Vector3();
-let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, qizzOpen = false, mathOpen = false, yardGameOpen = false;
+let started = false, dialogOpen = false, menuOpen = false, mapOn = true, chatOpen = false, classOpen = false, qizzOpen = false, mathOpen = false, yardGameOpen = false;
 let landscapeRequired = false;
-let galleryOpen = false, boardOpen = false;
+let galleryOpen = false;
 let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
 let localQuiz = null;
 let yardGamesUnmount = null;
+let caroPanelOpen = false, caroPlayers = [], caroIncoming = null, caroIncomingTimer = null;
+let caroGame = null;
+const caroOutgoing = new Map();
 
 function updateOrientationNotice() {
   const portraitPhone = coarsePointer && innerWidth <= 760 && innerHeight > innerWidth;
@@ -419,7 +422,8 @@ function updateOrientationNotice() {
 }
 
 function uiBlocksGame() {
-  return menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || dialogOpen || galleryOpen || boardOpen
+  return menuOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || dialogOpen || galleryOpen
+    || caroPanelOpen || !!caroIncoming || !!caroGame
     || landscapeRequired || (!$('intro').hidden && !started);
 }
 function formFocusBlocksKeys() {
@@ -453,6 +457,14 @@ function toggleOverview() {
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
   if (!started || menuOpen || landscapeRequired || formFocusBlocksKeys()) return;
+  if (caroIncoming || caroPanelOpen || caroGame) {
+    if (e.code === 'Escape') {
+      if (caroIncoming) answerCaroInvite(false);
+      else if (caroGame) leaveCaroGame();
+      else closeCaroInvitePanel();
+    }
+    return;
+  }
   if ((qizzOpen || yardGameOpen) && e.code !== 'KeyE' && e.code !== 'Escape') return;
   if (e.code === 'KeyE' || e.code === 'Enter') { if (!e.repeat) use(); e.preventDefault(); return; }
   if (e.code === 'Escape') {
@@ -524,7 +536,7 @@ function resetJoy() {
 }
 
 function ptrOnUi(el) {
-  return el?.closest?.('#hud, #guestbook, #classPanel, #talkInvite, #talkPanel, #chatBar, #dialog, #galleryView, #leaderboard, #intro, #minimap, #mobileBar, #touchBtns, #joy, button, input, textarea, select, a, label');
+  return el?.closest?.('#hud, #classPanel, #talkInvite, #talkPanel, #chatBar, #dialog, #galleryView, #intro, #minimap, #mobileBar, #touchBtns, #joy, button, input, textarea, select, a, label');
 }
 
 const pinchPts = new Map();
@@ -712,35 +724,8 @@ function closeDialog() {
 }
 $('dlgClose').addEventListener('click', closeDialog);
 
-function renderGuestbook(list) {
-  const ul = $('gbList');
-  ul.replaceChildren();
-  if (!list.length) {
-    const li = document.createElement('li');
-    li.className = 'empty';
-    li.textContent = 'Chưa có lời nhắn — hãy là người đầu tiên!';
-    ul.appendChild(li);
-    return;
-  }
-  for (const n of list) {
-    const li = document.createElement('li');
-    li.innerHTML = `<b>${escapeHtml(n.name)}</b> — ${escapeHtml(n.text)}<small>${escapeHtml(n.info || '')}</small>`;
-    ul.appendChild(li);
-  }
-}
 function escapeHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-function openGuestbook() {
-  bookOpen = true;
-  $('guestbook').hidden = false;
-  renderGuestbook(mp.notes);
-  $('gbInput').focus();
-}
-function closeGuestbook() {
-  bookOpen = false;
-  $('guestbook').hidden = true;
-  releaseGameFocus();
 }
 const NEAR_CHAT_MAX = 24;
 function appendNearChat(who, text, me = false) {
@@ -886,9 +871,52 @@ const mp = createMultiplayer({
         if (mathState) updateMathChoiceControls(mathState);
       }
     },
-    onNotes(list) {
-      renderGuestbook(list);
-      pushStats();
+    onCaroPlayers(players) {
+      caroPlayers = players;
+      if (caroPanelOpen) renderCaroPlayers();
+    },
+    onCaroCurrent(game) {
+      if (game && !caroGame) showCaroGame(game);
+    },
+    onCaroInvite: showCaroInvite,
+    onCaroInviteSent(m) {
+      const previous = caroOutgoing.get(m.id);
+      if (previous?.timer) clearTimeout(previous.timer);
+      const timer = setTimeout(() => {
+        caroOutgoing.delete(m.id);
+        if (caroPanelOpen) renderCaroPlayers();
+        toast('Lời mời đấu Caro đã hết hạn.', 2500);
+      }, 30_000);
+      caroOutgoing.set(m.id, { inviteId: m.inviteId, timer });
+      if (caroPanelOpen) renderCaroPlayers();
+      toast('Đã gửi lời mời đấu cờ Caro.', 2500);
+    },
+    onCaroDeclined(m) {
+      clearCaroOutgoing(m.id);
+      const remote = mp.remotes.get(m.id);
+      toast(`${remoteName(remote)} đã từ chối lời mời Caro.`, 3000);
+      if (caroPanelOpen) renderCaroPlayers();
+    },
+    onCaroState: showCaroGame,
+    onCaroEnd(m) {
+      if (m.inviteId) {
+        clearCaroOutgoingByInvite(m.inviteId);
+        if (caroIncoming?.inviteId === m.inviteId) clearCaroIncoming();
+        const message = m.reason === 'expired' ? 'Lời mời đấu Caro đã hết hạn.' : 'Lời mời đấu Caro đã kết thúc.';
+        toast(message, 2500);
+      }
+      if (m.gameId && caroGame?.id === m.gameId) {
+        caroGame = null;
+        $('caroOnlineGame').hidden = true;
+        toast(m.reason === 'offline' ? 'Đối thủ đã rời sân. Ván Caro kết thúc.' : 'Ván Caro đã kết thúc.', 3000);
+        releaseGameFocus();
+      }
+      if (caroPanelOpen) mp.caroList();
+    },
+    onCaroError(msg) {
+      $('caroInviteStatus').textContent = msg;
+      toast(msg, 3500);
+      if (caroPanelOpen) mp.caroList();
     },
     onError: msg => toast(msg, 3500),
     onChat(m) {
@@ -990,9 +1018,182 @@ const mp = createMultiplayer({
     onJoin(m) {
       const who = m.profile?.name?.split(/\s+/).pop() || 'ai đó';
       toast(`${who} vừa vào sân trường`, 2200);
+      if (caroPanelOpen) mp.caroList();
+    },
+    onLeave(m) {
+      clearCaroOutgoing(m.id);
+      if (caroPanelOpen) mp.caroList();
     },
   },
 });
+
+function openCaroInvitePanel() {
+  if (!started || caroGame) return;
+  if (caroPanelOpen) { closeCaroInvitePanel(); return; }
+  freezeCaroControls();
+  caroPanelOpen = true;
+  $('caroInvitePanel').hidden = false;
+  $('caroInviteStatus').textContent = 'Đang tải danh sách người chơi…';
+  $('caroPlayerList').replaceChildren();
+  if (!mp.caroList()) $('caroInviteStatus').textContent = 'Cần kết nối máy chủ để mời đấu online.';
+  releaseGameFocus();
+}
+
+function closeCaroInvitePanel() {
+  caroPanelOpen = false;
+  $('caroInvitePanel').hidden = true;
+  releaseGameFocus();
+}
+
+function clearCaroOutgoing(id) {
+  const pending = caroOutgoing.get(id);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  caroOutgoing.delete(id);
+}
+
+function freezeCaroControls() {
+  keys.clear();
+  jumpQueued = false;
+  jumpQueuedUntil = 0;
+}
+
+function clearCaroOutgoingByInvite(inviteId) {
+  for (const [id, pending] of caroOutgoing) {
+    if (pending.inviteId === inviteId) clearCaroOutgoing(id);
+  }
+}
+
+function renderCaroPlayers() {
+  if (!caroPanelOpen) return;
+  const list = $('caroPlayerList');
+  list.replaceChildren();
+  if (!caroPlayers.length) {
+    $('caroInviteStatus').textContent = 'Hiện chưa có người chơi nào online.';
+    return;
+  }
+  const available = caroPlayers.filter(person => !person.busy && !caroOutgoing.has(person.id)).length;
+  $('caroInviteStatus').textContent = `${caroPlayers.length} người online · ${available} người có thể mời`;
+  for (const person of caroPlayers) {
+    const row = document.createElement('li');
+    row.className = 'caro-player-row';
+    const details = document.createElement('span');
+    details.className = 'caro-player-details';
+    const name = document.createElement('b');
+    name.textContent = person.name;
+    const info = document.createElement('small');
+    info.textContent = person.info || '';
+    details.append(name, info);
+    const action = document.createElement('button');
+    action.type = 'button';
+    const pending = caroOutgoing.get(person.id);
+    action.textContent = person.busy ? 'Đang chơi' : pending ? 'Đã gửi' : 'Thách đấu';
+    action.disabled = person.busy || !!pending;
+    action.addEventListener('click', () => {
+      if (!mp.caroInvite(person.id)) {
+        $('caroInviteStatus').textContent = 'Chưa kết nối máy chủ. Hãy thử lại khi online.';
+        return;
+      }
+      action.disabled = true;
+      action.textContent = 'Đang gửi…';
+    });
+    row.append(details, action);
+    list.appendChild(row);
+  }
+}
+
+function clearCaroIncoming() {
+  if (caroIncomingTimer) clearTimeout(caroIncomingTimer);
+  caroIncomingTimer = null;
+  caroIncoming = null;
+  $('caroIncoming').hidden = true;
+}
+
+function showCaroInvite(message) {
+  if (!message?.inviteId) return;
+  if (caroIncoming || caroGame) {
+    mp.caroAnswer(message.inviteId, false);
+    return;
+  }
+  freezeCaroControls();
+  caroIncoming = message;
+  $('caroIncomingText').textContent = `${message.name} (${message.info || 'đang online'}) mời bạn đấu cờ Caro.`;
+  $('caroIncoming').hidden = false;
+  chimeSound();
+  if (caroIncomingTimer) clearTimeout(caroIncomingTimer);
+  caroIncomingTimer = setTimeout(() => answerCaroInvite(false), 30_000);
+}
+
+function answerCaroInvite(accepted) {
+  if (!caroIncoming) return;
+  const inviteId = caroIncoming.inviteId;
+  clearCaroIncoming();
+  if (!mp.caroAnswer(inviteId, accepted)) {
+    toast('Chưa kết nối máy chủ; không thể trả lời lời mời.', 3000);
+    return;
+  }
+  if (!accepted) toast('Đã từ chối lời mời Caro.', 2200);
+}
+
+function showCaroGame(game) {
+  if (!game?.id || !Array.isArray(game.cells) || game.cells.length !== 225) return;
+  freezeCaroControls();
+  clearCaroIncoming();
+  const opponentId = game.xId === mp.myId ? game.oId : game.xId;
+  clearCaroOutgoing(opponentId);
+  caroGame = game;
+  caroPanelOpen = false;
+  $('caroInvitePanel').hidden = true;
+  $('caroOnlineGame').hidden = false;
+  $('caroGameTitle').textContent = `${game.xName} vs ${game.oName}`;
+  const status = $('caroGameStatus');
+  if (game.status === 'finished') {
+    status.textContent = game.winner === 'draw'
+      ? 'Ván cờ hòa.'
+      : game.winner === game.yourMark ? 'Bạn thắng!' : 'Bạn thua.';
+  } else {
+    status.textContent = game.turn === game.yourMark
+      ? `Đến lượt bạn (${game.yourMark}).`
+      : `Đang chờ ${game.turn === 'X' ? game.xName : game.oName} đi…`;
+  }
+  const board = $('caroGameBoard');
+  board.replaceChildren();
+  for (let i = 0; i < game.cells.length; i++) {
+    const mark = game.cells[i];
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = `caro-online-cell${mark ? ` mark-${mark}` : ''}`;
+    cell.textContent = mark;
+    cell.setAttribute('role', 'gridcell');
+    cell.setAttribute('aria-label', `Hàng ${Math.floor(i / 15) + 1}, cột ${i % 15 + 1}${mark ? `: ${mark}` : ''}`);
+    cell.disabled = game.status !== 'active' || game.turn !== game.yourMark || !!mark;
+    cell.addEventListener('click', () => {
+      if (!mp.caroMove(game.id, i)) toast('Mất kết nối máy chủ; chưa gửi được nước đi.', 2500);
+    });
+    board.appendChild(cell);
+  }
+  releaseGameFocus();
+}
+
+function leaveCaroGame() {
+  if (!caroGame) return;
+  const gameId = caroGame.id;
+  caroGame = null;
+  $('caroOnlineGame').hidden = true;
+  mp.caroEnd(gameId);
+  releaseGameFocus();
+  if (caroPanelOpen) mp.caroList();
+}
+
+$('caroInviteBtn').addEventListener('click', openCaroInvitePanel);
+$('mbCaro').addEventListener('click', openCaroInvitePanel);
+$('caroInviteClose').addEventListener('click', closeCaroInvitePanel);
+$('caroIncoming').addEventListener('click', e => {
+  if (e.target === $('caroIncoming')) answerCaroInvite(false);
+});
+$('caroAccept').addEventListener('click', () => answerCaroInvite(true));
+$('caroDecline').addEventListener('click', () => answerCaroInvite(false));
+$('caroGameEnd').addEventListener('click', leaveCaroGame);
 
 function ensureMathJax() {
   if (window.MathJax?.typesetPromise) {
@@ -1387,58 +1588,8 @@ $('yardGameClose').addEventListener('click', closeYardGames);
 $('afkReconnect').addEventListener('click', () => {
   if (netStatus !== 'connecting') mp.connect();
 });
-$('bookBtn').addEventListener('click', () => (bookOpen ? closeGuestbook() : openGuestbook()));
-$('bxhBtn')?.addEventListener('click', () => (boardOpen ? closeLeaderboard() : openLeaderboard()));
 $('galClose')?.addEventListener('click', () => { galleryOpen = false; closeGallery(); releaseGameFocus(); });
 $('galClose2')?.addEventListener('click', () => { galleryOpen = false; closeGallery(); releaseGameFocus(); });
-$('lbClose')?.addEventListener('click', closeLeaderboard);
-$('lbClose2')?.addEventListener('click', closeLeaderboard);
-
-function renderLeaderboard(rows) {
-  const ol = $('lbList');
-  if (!ol) return;
-  ol.replaceChildren();
-  if (!rows?.length) {
-    const li = document.createElement('li');
-    li.className = 'empty';
-    li.textContent = 'Chưa có điểm — thu thập lưu bút khi chơi online để lên bảng.';
-    ol.appendChild(li);
-    return;
-  }
-  rows.forEach((r, i) => {
-    const li = document.createElement('li');
-    li.innerHTML = `<b>${i + 1}. ${escapeHtml(r.name)}</b> — ${r.pages} trang · ${r.notes} lời nhắn<small>${escapeHtml(r.info || '')}</small>`;
-    ol.appendChild(li);
-  });
-}
-async function openLeaderboard() {
-  boardOpen = true;
-  $('leaderboard').hidden = false;
-  renderLeaderboard([]);
-  try {
-    const r = await fetch('/api/leaderboard');
-    if (r.ok) renderLeaderboard(await r.json());
-    else renderLeaderboard([]);
-  } catch {
-    toast('Chưa tải được BXH — chạy npm run dev', 3500);
-  }
-}
-function closeLeaderboard() {
-  boardOpen = false;
-  $('leaderboard').hidden = true;
-  releaseGameFocus();
-}
-$('gbClose').addEventListener('click', closeGuestbook);
-$('gbForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const text = $('gbInput').value.trim();
-  if (!text) return;
-  if (mp.note(text)) {
-    $('gbInput').value = '';
-    toast('Đã gửi lời nhắn lên sổ chung');
-    setTimeout(pushStats, 400);
-  } else toast('Chưa kết nối máy chủ — chạy npm run dev hoặc deploy Workers', 4000);
-});
 $('chatForm').addEventListener('submit', e => {
   e.preventDefault();
   const text = $('chatInput').value.trim();
@@ -1776,8 +1927,6 @@ function use() {
   unlockAudio();
   if (yardGameOpen) { closeYardGames(); return; }
   if (qizzOpen) { closeQizzGame(); return; }
-  if (bookOpen) { closeGuestbook(); return; }
-  if (boardOpen) { closeLeaderboard(); return; }
   if (galleryOpen) { galleryOpen = false; closeGallery(); releaseGameFocus(); return; }
   if (dialogOpen) { closeDialog(); return; }
   if (!current) return;
@@ -1926,7 +2075,7 @@ function climbLadder(dt, ox, oz) {
   const p = player.pos;
   const up = keys.has('KeyW') || keys.has('ArrowUp') || joy.y < -0.3;
   const dn = keys.has('KeyS') || keys.has('ArrowDown') || joy.y > 0.3;
-  const blocked = dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || !started;
+  const blocked = dialogOpen || menuOpen || chatOpen || classOpen || !started;
   if (!player.ladder && !blocked && performance.now() >= (player.ladderLockUntil || 0)) {
     for (const ld of world.ladders || []) {
       const dHang = Math.hypot(ox - ld.x, oz - ld.z);
@@ -2010,7 +2159,7 @@ function updatePlayer(dt) {
   iz -= joy.y;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || landscapeRequired || !started || overviewOn) ix = iz = 0;
+  if (dialogOpen || menuOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || caroPanelOpen || caroIncoming || caroGame || landscapeRequired || !started || overviewOn) ix = iz = 0;
   const wantMove = Math.hypot(ix, iz) > 0.08;
   if (player.pose && wantMove) clearPlayerPose();
   if (player.pose === 'sit' || player.pose === 'lie') ix = iz = 0;
@@ -2251,7 +2400,7 @@ function frame(timestamp = performance.now()) {
   if (started) {
     current = nearest();
     if (current) $('promptText').textContent = current.label;
-    $('prompt').hidden = !current || dialogOpen || galleryOpen || boardOpen || yardGameOpen;
+    $('prompt').hidden = !current || dialogOpen || galleryOpen || yardGameOpen;
     if ((mapTick += dt) > 0.1 && mapOn) { mapTick = 0; drawMap(); }
   }
 
@@ -2279,11 +2428,9 @@ function start() {
   startBackgroundMusic();
   $('intro').hidden = true;
   document.body.classList.add('playing');
-  bookOpen = false;
   chatOpen = false;
   classOpen = false;
   menuOpen = false;
-  $('guestbook').hidden = true;
   $('classPanel').hidden = true;
   $('chatBar').hidden = true;
   releaseGameFocus();
@@ -2358,9 +2505,7 @@ addEventListener('keydown', e => {
   if (e.code !== 'Escape') return;
   if (chatOpen) { closeChat(); return; }
   if (classOpen) { closeClass(); return; }
-  if (bookOpen) { closeGuestbook(); return; }
   if (galleryOpen) { galleryOpen = false; closeGallery(); releaseGameFocus(); return; }
-  if (boardOpen) { closeLeaderboard(); return; }
   if (menuOpen) { menuOpen = false; $('intro').hidden = true; $('intro').classList.remove('ingame'); }
 });
 
