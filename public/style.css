@@ -44,6 +44,11 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 
 #afkNotice p { margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.35; }
 #afkNotice .primary { padding: 13px 10px; border-radius: 14px; color: #fff; font-size: 16px; box-shadow: 0 8px 18px rgba(198, 40, 40, 0.25); }
 #afkNotice .primary:disabled { cursor: wait; opacity: 0.75; }
+#rotateNotice { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, 0.94); color: #fff; text-align: center; }
+#rotateNotice .rotate-card { width: min(360px, 100%); }
+#rotateNotice .rotate-icon { width: 76px; height: 76px; display: grid; place-items: center; margin: 0 auto 20px; border: 3px solid #f3cf55; border-radius: 20px; color: #f3cf55; font-size: 52px; line-height: 1; }
+#rotateNotice h2 { margin: 0 0 10px; font-size: 23px; }
+#rotateNotice p { margin: 0; color: #dbeafe; font-size: 15px; line-height: 1.5; }
 #help { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 12px; color: #fff; background: rgba(0,0,0,0.38); padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; }
 
 #dialog { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.25); }

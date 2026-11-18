@@ -1224,7 +1224,13 @@ export function buildWorld(scene) {
   }
 
   // ---------- cây xanh ----------
+  const mainSchoolBounds = { minX: -44, maxX: 44, minZ: AZ - 5, maxZ: AZ + 9 };
+  function treeOverlapsMainSchool(x, z, canopyRadius = 4.5) {
+    return x + canopyRadius > mainSchoolBounds.minX && x - canopyRadius < mainSchoolBounds.maxX &&
+      z + canopyRadius > mainSchoolBounds.minZ && z - canopyRadius < mainSchoolBounds.maxZ;
+  }
   function palm(x, z, h = 9) {
+    if (treeOverlapsMainSchool(x, z)) return;
     cyl(mats.palmTrunk, WORLD, 0.3, h, x, 0, z, 0.7);
     cyl(M(0x6f9a3a), WORLD, 0.24, 1.3, x, h, z, 0.8);
     const top = new THREE.Vector3(x, h + 1.25, z);
@@ -1241,6 +1247,7 @@ export function buildWorld(scene) {
     W.colliders.push({ minX: x - 0.35, maxX: x + 0.35, minZ: z - 0.35, maxZ: z + 0.35, top: h });
   }
   function flameTree(x, z, s = 1) {
+    if (treeOverlapsMainSchool(x, z)) return;
     cyl(mats.trunk, WORLD, 0.32 * s, 3.0 * s, x, 0, z, 0.75);
     // tán phượng xoè rộng, lá xanh lẫn chùm hoa đỏ cam
     for (let k = 0; k < 16; k++) {
@@ -1253,6 +1260,7 @@ export function buildWorld(scene) {
     W.colliders.push({ minX: x - 0.4, maxX: x + 0.4, minZ: z - 0.4, maxZ: z + 0.4, top: 4 });
   }
   function roundTree(x, z, s = 1) {
+    if (treeOverlapsMainSchool(x, z)) return;
     cyl(mats.trunk, WORLD, 0.25 * s, 2.6 * s, x, 0, z, 0.7);
     blob(mats.leafDark, WORLD, x, 3.6 * s, z, 1.9 * s, 1.6 * s, 1.9 * s);
     blob(mats.leaf, WORLD, x + 0.8 * s, 4.3 * s, z + 0.3 * s, 1.3 * s, 1.1 * s, 1.3 * s);
@@ -1264,6 +1272,7 @@ export function buildWorld(scene) {
     box(mats.soil, WORLD, r * 2 - 0.2, 0.31, r * 2 - 0.2, x, 0, z);
   }
   function placeYardTree(x, z, type = 'flame', s = 1) {
+    if (treeOverlapsMainSchool(x, z)) return;
     const bed = type === 'palm' ? 0.85 : 1.0 + (s - 1) * 0.3;
     treeBed(x, z, bed);
     if (type === 'palm') palm(x, z, 7.2 + (Math.abs(x * 3 + z) % 4) * 0.6);
@@ -1275,6 +1284,7 @@ export function buildWorld(scene) {
   for (const x of [10.5, 22, 30]) flameTree(x, 38.4, 1.0);
   for (const z of [30, 23]) for (const x of [-6, 6]) { treeBed(x, z, 0.8); palm(x, z, 8.5 + (z % 3)); }
   for (const [x, z, s] of [[-30, 28, 1.1], [-20, 20, 0.95], [20, 20, 1.0], [-22, -12, 1.0], [24, -12, 1.0], [34, 6, 0.95], [-14, 6, 0.9]]) {
+    if (treeOverlapsMainSchool(x, z)) continue;
     treeBed(x, z);
     flameTree(x, z, s);
   }
@@ -1283,7 +1293,7 @@ export function buildWorld(scene) {
   for (const [x, z] of [[-68, -10], [-68, 10], [-68, 26], [68, -12], [68, 8], [68, 24], [-30, -50], [-10, -51], [12, -50], [32, -51]]) roundTree(x, z, 1.1);
   // Vườn cây bên trái sân trong: cây cổ thụ (dưới gốc treo kẻng), bồn cây viền gạch, ghế đá, cau (theo ảnh 2022).
   {
-    const x = -34, z = 4;
+    const x = -52, z = 4;
     treeBed(x, z, 1.8);
     cyl(mats.trunk, WORLD, 0.75, 3.2, x, 0, z, 0.75);
     // ba cành lớn vươn chếch lên
@@ -1309,7 +1319,7 @@ export function buildWorld(scene) {
     W.interact.push({ x: kx + 0.5, z, r: 2.2, label: 'Đánh kẻng ra chơi', action: 'keng' });
     // bồn cây viền gạch đỏ + cau (ảnh 2022 — vườn bên trái)
     const brick = M(0xa8452f);
-    for (const [bx, bz] of [[-39, -5], [-39, 13]]) {
+    for (const [bx, bz] of [[-50, -5], [-50, 13]]) {
       box(brick, WORLD, 4, 0.45, 3, bx, 0, bz, { collide: true });
       box(mats.soil, WORLD, 3.7, 0.46, 2.7, bx, 0, bz);
       for (let i = -1; i <= 1; i++) blob(mats.bush, WORLD, bx + i * 1.1, 0.75, bz + 0.8, 0.6, 0.4, 0.5);

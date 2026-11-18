@@ -401,14 +401,26 @@ const overviewRotationSpeed = 2 * Math.PI / 75;
 const followCameraPosition = new THREE.Vector3();
 const blendedCameraTarget = new THREE.Vector3();
 let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, qizzOpen = false, mathOpen = false, yardGameOpen = false;
+let landscapeRequired = false;
 let galleryOpen = false, boardOpen = false;
 let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
 let localQuiz = null;
 let yardGamesUnmount = null;
 
+function updateOrientationNotice() {
+  const portraitPhone = coarsePointer && innerWidth <= 760 && innerHeight > innerWidth;
+  landscapeRequired = started && portraitPhone;
+  $('rotateNotice').hidden = !landscapeRequired;
+  if (landscapeRequired) {
+    keys.clear();
+    jumpQueued = false;
+    jumpQueuedUntil = 0;
+  }
+}
+
 function uiBlocksGame() {
   return menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || dialogOpen || galleryOpen || boardOpen
-    || (!$('intro').hidden && !started);
+    || landscapeRequired || (!$('intro').hidden && !started);
 }
 function formFocusBlocksKeys() {
   const ae = document.activeElement;
@@ -440,7 +452,7 @@ function toggleOverview() {
 
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
-  if (!started || menuOpen || formFocusBlocksKeys()) return;
+  if (!started || menuOpen || landscapeRequired || formFocusBlocksKeys()) return;
   if ((qizzOpen || yardGameOpen) && e.code !== 'KeyE' && e.code !== 'Escape') return;
   if (e.code === 'KeyE' || e.code === 'Enter') { if (!e.repeat) use(); e.preventDefault(); return; }
   if (e.code === 'Escape') {
@@ -1168,10 +1180,18 @@ const LOCAL_QUIZZES = {
   english: { title: 'English Game', questions: ENGLISH_QUESTIONS },
 };
 
+function shuffleQuizQuestions(questions) {
+  const shuffled = [...questions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 function renderLocalQuiz() {
   if (!localQuiz) return;
-  const { game, index, score, completed } = localQuiz;
-  const questions = LOCAL_QUIZZES[game].questions;
+  const { game, index, score, completed, questions } = localQuiz;
   $('qizzLocalProgress').textContent = completed
     ? `${LOCAL_QUIZZES[game].title} · ${score}/${questions.length} điểm`
     : `${LOCAL_QUIZZES[game].title} · Câu ${index + 1}/${questions.length} · ${score} điểm`;
@@ -1249,7 +1269,14 @@ function openLocalQuiz(game) {
   if (!LOCAL_QUIZZES[game]) return;
   qizzOpen = true;
   mathOpen = false;
-  localQuiz = { game, index: 0, score: 0, answered: false, completed: false };
+  localQuiz = {
+    game,
+    questions: shuffleQuizQuestions(LOCAL_QUIZZES[game].questions),
+    index: 0,
+    score: 0,
+    answered: false,
+    completed: false,
+  };
   $('mathTitle').textContent = LOCAL_QUIZZES[game].title;
   $('qizzPicker').hidden = true;
   $('qizzLocal').hidden = false;
@@ -1265,7 +1292,7 @@ function advanceLocalQuiz() {
     openLocalQuiz(localQuiz.game);
     return;
   }
-  const questionCount = LOCAL_QUIZZES[localQuiz.game].questions.length;
+  const questionCount = localQuiz.questions.length;
   if (localQuiz.index + 1 >= questionCount) localQuiz.completed = true;
   else {
     localQuiz.index++;
@@ -1983,7 +2010,7 @@ function updatePlayer(dt) {
   iz -= joy.y;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || !started || overviewOn) ix = iz = 0;
+  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || landscapeRequired || !started || overviewOn) ix = iz = 0;
   const wantMove = Math.hypot(ix, iz) > 0.08;
   if (player.pose && wantMove) clearPlayerPose();
   if (player.pose === 'sit' || player.pose === 'lie') ix = iz = 0;
@@ -2013,7 +2040,7 @@ function updatePlayer(dt) {
   const g = col.groundAt(p.x, p.z, player.feetY);
   const wantJump = !player.onBike && (jumpQueued || performance.now() < jumpQueuedUntil);
   if (wantJump && player.pose) clearPlayerPose();
-  if (wantJump && player.grounded && !dialogOpen && started && !player.pose) { player.vy = 6.2; player.grounded = false; jumpQueuedUntil = 0; }
+  if (wantJump && player.grounded && !dialogOpen && !landscapeRequired && started && !player.pose) { player.vy = 6.2; player.grounded = false; jumpQueuedUntil = 0; }
   jumpQueued = false;
   player.vy -= 17.5 * dt;
   player.feetY += player.vy * dt;
@@ -2237,7 +2264,9 @@ addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   renderer.setPixelRatio(pixelCap);
+  updateOrientationNotice();
 });
+addEventListener('orientationchange', updateOrientationNotice);
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clock.stop();
@@ -2246,6 +2275,7 @@ document.addEventListener('visibilitychange', () => {
 
 function start() {
   started = true;
+  updateOrientationNotice();
   startBackgroundMusic();
   $('intro').hidden = true;
   document.body.classList.add('playing');
