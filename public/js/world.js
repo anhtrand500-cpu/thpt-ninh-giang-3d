@@ -289,32 +289,46 @@ export function buildWorld(scene) {
 
     // khối phòng học, chừa các gian sảnh cầu thang (o.halls: toạ độ x mép trái của gian)
     const halls = o.halls || [], roomSlots = [];
+    const roomSpan = Math.max(1, Math.floor(o.roomSpan || 1));
+    const roomStep = Math.max(roomSpan, Math.floor(o.roomStep || 2));
+    const roomSections = o.roomSections ? new Set(o.roomSections) : null;
     let segStart = -L / 2;
+    let sectionIndex = 0;
     for (const edge of [...halls.slice().sort((a, b) => a - b), L / 2]) {
       const a = segStart, b = edge;
       if (b - a > 0.01) {
         const nBays = Math.round((b - a) / bw);
-        const roomBase = roomSlots.length;
+        const sectionSlots = [];
         drawFacade(facadeMat, facadeBack, a, b, roomFront + 0.01, 0, (b - a) / bw, floors);
-        for (let k = 0; k < nBays; k += 2) roomSlots.push(a + k * bw);
+        if (!roomSections || roomSections.has(sectionIndex)) {
+          for (let k = 0; k + roomSpan <= nBays; k += roomStep) {
+            const slot = { left: a + k * bw, width: roomSpan * bw, bayStart: k, index: roomSlots.length };
+            roomSlots.push(slot);
+            sectionSlots.push(slot);
+          }
+        }
         for (let bi = 0; bi < nBays; bi++) {
           const xc = a + (bi + 0.5) * bw;
-          const roomIdx = roomBase + bi / 2;
           const bayLeft = xc - bw / 2, bayRight = xc + bw / 2;
-          const isClassBay = bi % 2 === 0 && (o.rooms || []).some(names => isClassRoomCode(names?.[roomIdx]));
-          if (!passage || bayRight <= passageLeft || bayLeft >= passageRight) {
-            box(wallMat, F, bw, H, D - C, xc, 0, -C / 2, { collide: !isClassBay });
-          } else {
-            const upperH = H - FH;
-            if (upperH > 0) box(wallMat, F, bw, upperH, D - C, xc, FH, -C / 2, { collide: !isClassBay });
-            const leftW = Math.max(0, Math.min(bayRight, passageLeft) - bayLeft);
-            if (leftW > 0) box(wallMat, F, leftW, FH, D - C, bayLeft + leftW / 2, 0, -C / 2, { collide: true });
-            const rightW = Math.max(0, bayRight - Math.max(bayLeft, passageRight));
-            if (rightW > 0) box(wallMat, F, rightW, FH, D - C, bayRight - rightW / 2, 0, -C / 2, { collide: true });
+          const isClassBay = sectionSlots.some(slot =>
+            bi >= slot.bayStart && bi < slot.bayStart + roomSpan &&
+            (o.rooms || []).some(names => isClassRoomCode(names?.[slot.index])));
+          if (!isClassBay) {
+            if (!passage || bayRight <= passageLeft || bayLeft >= passageRight) {
+              box(wallMat, F, bw, H, D - C, xc, 0, -C / 2, { collide: true });
+            } else {
+              const upperH = H - FH;
+              if (upperH > 0) box(wallMat, F, bw, upperH, D - C, xc, FH, -C / 2, { collide: true });
+              const leftW = Math.max(0, Math.min(bayRight, passageLeft) - bayLeft);
+              if (leftW > 0) box(wallMat, F, leftW, FH, D - C, bayLeft + leftW / 2, 0, -C / 2, { collide: true });
+              const rightW = Math.max(0, bayRight - Math.max(bayLeft, passageRight));
+              if (rightW > 0) box(wallMat, F, rightW, FH, D - C, bayRight - rightW / 2, 0, -C / 2, { collide: true });
+            }
           }
         }
       }
       segStart = edge + bw;
+      sectionIndex++;
     }
     drawFacade(facadeBack, facadeBack, -L / 2, L / 2, -D / 2 - 0.01, Math.PI, bays, floors);
     if (passage) box(mats.floorTile, F, passage.width, 0.04, D, passage.center, 0.015, 0, { collide: true });
@@ -400,23 +414,24 @@ export function buildWorld(scene) {
     // biển tên lớp/phòng — căn giữa ô lớp (cùng trục cửa), texture riêng từng biển (tránh lỗi UV atlas)
     (o.rooms || []).forEach((names, f) => names.forEach((name, i) => {
       if (!name || i >= roomSlots.length) return;
-      const roomLeft = roomSlots[i];
-      if (passage && f === 0 && roomLeft < passageRight && roomLeft + bw > passageLeft) return;
-      const xc = roomSlots[i] + bw * 0.5;
+      const roomSlot = roomSlots[i];
+      const roomLeft = roomSlot.left;
+      const roomWidth = roomSlot.width;
+      if (passage && f === 0 && roomLeft < passageRight && roomLeft + roomWidth > passageLeft) return;
+      const xc = roomLeft + roomWidth * 0.5;
       // Biển trên vách cửa lớp (mặt hướng hành lang), mọi tầng — không đặt trước lan can.
       const plateY = f === 0 ? 2.9 : f * FH + 2.58;
       const plateZ = roomFront + 0.09;
-      roomPlate(F, name, xc, plateY, plateZ, bw);
+      roomPlate(F, name, xc, plateY, plateZ, roomWidth);
       const code = String(name).toUpperCase().replace(/\s/g, '');
       if (isClassRoomCode(code)) {
-        const slot = roomSlots[Math.min(i, roomSlots.length - 1)] + bw * 0.5;
-        const shell = { xc: slot, bw, D, roomFront, floorIndex: f };
+        const shell = { xc, bw: roomWidth, D, roomFront, floorIndex: f };
         ensureClassroomShell(F, W, mats, batch, wallMat, shell);
         furnishClassroom(root, F, W, { ...shell, className: code });
-        installClassroomDoor(root, F, W, { xc: slot, roomFront, floorIndex: f, className: code });
+        installClassroomDoor(root, F, W, { xc, roomFront, floorIndex: f, className: code });
         registerClassroomMeta(W, F, { ...shell, className: code });
         const zRoom = (-D / 2 + 0.35 + roomFront - 0.25) / 2;
-        const cen = new THREE.Vector3(slot, f * FH + 1.2, zRoom).applyMatrix4(F.m);
+        const cen = new THREE.Vector3(xc, f * FH + 1.2, zRoom).applyMatrix4(F.m);
         W.interact.push({
           x: cen.x,
           z: cen.z,
@@ -566,7 +581,9 @@ export function buildWorld(scene) {
   const seq = (pre, a, b) => Array.from({ length: b - a + 1 }, (_, i) => `${pre}${a + i}`);
   // Khối 12 = A, khối 11 = B, khối 10 = C (theo biển lớp trong ảnh 2026); thứ tự phòng là giả định.
   const A = buildBlock({ x: 0, z: AZ, ry: 0, L: 88, D: 10, floors: 3, stairs: false, halls: [-16, 12], passage: { center: 2, width: 8 },
-    rooms: [seq('12A', 1, 9), seq('11B', 1, 9), seq('10C', 1, 9)] });
+    facade: mats.facadeBack,
+    roomSpan: 2, roomSections: [0, 2],
+    rooms: [seq('12A', 1, 6), seq('11B', 1, 6), seq('10C', 1, 6)] });
   {
     const { F, H, front } = A;
     const pd = 3.2, pz = front + pd / 2;
@@ -599,7 +616,7 @@ export function buildWorld(scene) {
       x: 0, z: AZ + front - 1.2, r: 4,
       label: 'Hành lang các lớp',
       title: 'Phòng học',
-      text: 'Các phòng học 12A, 11B, 10C nằm dọc hành lang; lối đi rộng ở giữa nối sân trước với sân sau. Đứng trước cửa, nhấn E để mở rồi bước vào. Lên tầng 2, 3 bằng cầu thang hai bên sảnh.',
+      text: 'Mỗi tầng có 6 phòng học rộng, bàn ghế xếp thành các hàng ngang. Các lớp nằm dọc hành lang; lối đi giữa nối sân trước với sân sau. Đứng trước cửa, nhấn E để mở rồi bước vào. Lên tầng 2, 3 bằng cầu thang hai bên sảnh.',
     });
     W.interact.push({
       x: 0, z: AZ, r: 14, minY: 9.6,
@@ -1149,16 +1166,16 @@ export function buildWorld(scene) {
   }
   // băng rôn trên dãy nhà bên phải (theo ảnh buổi ngoại khoá)
   sign(T.signTexture('HIỀN TÀI LÀ NGUYÊN KHÍ QUỐC GIA', { w: 2000, h: 150, bg: '#c62828', fg: '#ffffff', border: '#ffd54a' }), 16, 1.2, 50.25, 4.35, -8, -Math.PI / 2);
-  // ---------- bảng Em ham học ----------
+  // ---------- bảng Qizz Game ----------
   for (const x of [-21.4, -18.6]) box(mats.grey, WORLD, 0.15, 3.8, 0.15, x, 0, -28.6, { collide: true });
   box(mats.trim, WORLD, 2.6, 3.2, 0.15, -20, 0.5, -28.5, { collide: true });
-  sign(T.honorBoardTexture('EM HAM HỌC', [
-    'Math Game · Tích phân',
-    '15 câu hỏi · Chơi cùng 40 bạn',
+  sign(T.honorBoardTexture('QIZZ GAME', [
+    'Math · History · English',
+    'Chọn một game để chơi',
   ]), 2.3, 2.85, -20, 2.1, -28.4);
   W.interact.push({
-    x: -20, z: -27, r: 2.8, label: 'Chơi Math Game',
-    action: 'math-game',
+    x: -20, z: -27, r: 2.8, label: 'Chơi Qizz Game',
+    action: 'qizz-game',
   });
 
   W.interact.push({

@@ -84,21 +84,62 @@ export function installClassroomDoor(root, F, W, { xc, roomFront, floorIndex, cl
   const y0 = floorIndex === 0 ? 0 : floorIndex * FH;
   const wallY = floorIndex === 0 ? 0.15 : y0;
   const zFront = roomFront - 0.06;
+  const doorZ = roomFront + 0.14;
   const fy = faceY(F);
   const id = `${className}-f${floorIndex}`;
 
-  const hinge = new THREE.Group();
-  const wood = M(0x6d4c33);
-  const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W, DOOR_H, 0.07), wood);
-  doorMesh.position.set(DOOR_W / 2, DOOR_H / 2, 0.04);
-  hinge.add(doorMesh);
+  const frame = new THREE.Group();
+  frame.position.copy(worldPos(F, xc, wallY, doorZ));
+  frame.rotation.y = fy;
+  root.add(frame);
 
-  const hingeLocal = new THREE.Vector3(xc - DOOR_W / 2, wallY, zFront + 0.04);
+  const trim = M(0xfbf6e6);
+  const transom = M(0x38271d);
+  const bar = M(0xc9a54a, { metalness: 0.35, roughness: 0.5 });
+  const addFramePart = (material, width, height, depth, x, y, z) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    frame.add(mesh);
+  };
+  const transomH = 0.36;
+  const transomY = DOOR_H + 0.08 + transomH / 2;
+  const frameW = DOOR_W + 0.18;
+  const frameH = DOOR_H + transomH + 0.18;
+  for (const side of [-1, 1]) {
+    addFramePart(trim, 0.09, frameH, 0.12, side * (DOOR_W / 2 + 0.045), frameH / 2, -0.04);
+  }
+  addFramePart(trim, frameW, 0.09, 0.12, 0, DOOR_H + transomH + 0.135, -0.04);
+  addFramePart(transom, DOOR_W - 0.08, transomH, 0.05, 0, transomY, -0.055);
+  for (let i = 0; i < 6; i++) {
+    addFramePart(bar, 0.035, transomH - 0.08, 0.06, -0.39 + i * 0.156, transomY, -0.09);
+  }
+
+  const hinge = new THREE.Group();
+  const wood = M(0x542a1c);
+  const panel = M(0x75412d);
+  const panelTrim = M(0x351b14);
+  const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W, DOOR_H, 0.07), wood);
+  doorMesh.position.set(DOOR_W / 2, DOOR_H / 2, 0);
+  hinge.add(doorMesh);
+  for (const x of [0.255, 0.765]) {
+    for (const [y, height] of [[0.52, 0.78], [1.48, 0.78]]) {
+      const border = new THREE.Mesh(new THREE.BoxGeometry(0.4, height, 0.018), panelTrim);
+      border.position.set(x, y, -0.043);
+      hinge.add(border);
+      const inset = new THREE.Mesh(new THREE.BoxGeometry(0.34, height - 0.08, 0.02), panel);
+      inset.position.set(x, y, -0.056);
+      hinge.add(inset);
+    }
+  }
+
+  const hingeLocal = new THREE.Vector3(xc + DOOR_W / 2, wallY, doorZ);
   hinge.position.copy(worldPos(F, hingeLocal.x, hingeLocal.y, hingeLocal.z));
   hinge.rotation.y = fy;
   root.add(hinge);
 
-  const closedRect = F.rect(xc - DOOR_W / 2, xc + DOOR_W / 2, zFront - 0.02, zFront + 0.18);
+  const closedRect = F.rect(xc - DOOR_W / 2, xc + DOOR_W / 2, doorZ - 0.05, doorZ + 0.05);
   const closedCol = { ...closedRect, top: wallY + DOOR_H, bottom: wallY, doorId: id };
   W.colliders.push(closedCol);
 
@@ -185,9 +226,11 @@ export function furnishClassroom(root, F, W, { xc, bw, D, roomFront, floorIndex,
   place(new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.03, 0.62), M(0x1565c0)), -halfW + 0.62, 0.76, backZ + 0.95);
   colBox(-halfW + 0.62, backZ + 0.95, 1.15, 0.6, 0.74);
 
-  // Bàn học sinh dài hai dãy, lối đi giữa
+  // Bàn học sinh xếp thành các hàng ngang, song song với bảng.
   const deskLen = Math.min(1.35, halfW * 0.65);
-  const colXs = [-halfW * 0.62, halfW * 0.62];
+  const deskCols = halfW >= 2.6 ? 4 : 2;
+  const colGap = Math.min(1.7, (halfW * 2 - deskLen - 0.5) / (deskCols - 1));
+  const colXs = Array.from({ length: deskCols }, (_, i) => (i - (deskCols - 1) / 2) * colGap);
   const rows = Math.min(5, Math.max(4, Math.floor(depth / 1.05)));
   for (let r = 0; r < rows; r++) {
     const z = backZ + 1.45 + r * 0.92;

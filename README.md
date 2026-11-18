@@ -85,7 +85,7 @@ Dự án hiện chọn **một Worker Cloudflare** vì: không server riêng, HT
 
 ## Gặp nhau trên sân
 - Nếu không thao tác trong **3 phút**, kết nối sân chung sẽ tạm ngắt để tiết kiệm pin và băng thông; bấm **Kết nối lại ngay** để vào lại.
-- **EM HAM HỌC / Math Game:** tương tác với bảng trong sân để vào phòng chung; bất kỳ người chơi nào cũng có thể bắt đầu ngay, tối đa 40 người cùng phòng. Ván có 15 câu Tích phân (5 câu mỗi mức), công thức LaTeX, 20 giây mỗi câu và tự hiện đáp án / bảng điểm.
+- **Qizz Game:** tương tác với bảng Qizz trong sân để chọn Math Game, History Game hoặc English Game. Math Game là phòng chung tối đa 40 người, gồm 15 câu Tích phân và bảng điểm; History Game và English Game hiện chơi nhanh 5 câu trên thiết bị.
 - **Kỳ Đài Học Trò:** sân mở, thu gọn và không hàng rào ở gần lửa trại phía sau Nhà học chính, có bàn Caro, Cá Ngựa, Cờ Vua và biển chỉ dẫn. Đi tới từng bàn, nhấn **E** để chơi trên cùng thiết bị hoặc chọn **Đấu với máy** để máy tự đi sau lượt của bạn; Caro nối 5 quân, Cá Ngựa hỗ trợ 2 hoặc 4 người chơi tại chỗ, Cờ Vua có nước đi hợp lệ, nhập thành, bắt tốt qua đường, phong hậu và kết thúc chiếu hết.
 - **Chat sân (T):** chỉ người trong 15 m nhận; hiện bong bóng trên đầu người nói.
 - **Trò chuyện riêng:** đứng cạnh người khác → **E: Mời … trò chuyện** → người kia **Đồng ý** mới mở khung nhắn riêng (lời mời hết hạn sau 30 s).

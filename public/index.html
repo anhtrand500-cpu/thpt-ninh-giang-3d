@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#8e2a22">
@@ -110,46 +110,81 @@
     <section class="math-card">
       <header class="math-head">
         <div>
-          <small>EM HAM HỌC · TÍCH PHÂN</small>
-          <h2 id="mathTitle">Math Game</h2>
+          <small>QIZZ GAME · TRẮC NGHIỆM</small>
+          <h2 id="mathTitle">Qizz Game</h2>
         </div>
+        <button id="qizzBackFromMath" class="qizz-back" type="button" hidden>← Chọn game</button>
         <button id="mathClose" class="cls-x" type="button" aria-label="Đóng">✕</button>
       </header>
-      <div class="math-statusbar">
-        <span id="mathRoomStatus">Đang kết nối phòng chung…</span>
-        <b id="mathPlayerCount">0/40 người</b>
-      </div>
-      <div class="math-content">
-        <main class="math-main">
-          <div class="math-progress"><div id="mathProgress"></div></div>
-          <div id="mathMessage" role="status" aria-live="polite"></div>
-          <section id="mathLobby" class="math-lobby" hidden>
-            <div class="math-mark" aria-hidden="true">∫</div>
-            <h3>Sẵn sàng chinh phục Tích phân?</h3>
-            <p>15 câu hỏi · 5 Dễ · 5 Trung bình · 5 Khó<br>20 giây mỗi câu · trả lời nhanh và đúng để ghi điểm.</p>
-            <p id="mathRoomHint"></p>
-          </section>
-          <section id="mathQuestionView" hidden>
-            <div class="math-question-meta"><b id="mathLevel"></b><span id="mathTimer"></span></div>
-            <div id="mathPrompt" class="math-prompt"></div>
-            <div id="mathChoices" class="math-choices"></div>
-            <div id="mathExplanation" class="math-explanation" hidden></div>
-          </section>
-          <div id="mathFormulaStatus" class="math-formula-status" role="status" hidden></div>
-          <section id="mathFinished" class="math-finished" hidden>
-            <div class="math-mark" aria-hidden="true">🏆</div>
-            <h3>Hoàn thành Math Game!</h3>
-            <p>Ván chơi gồm 15 câu hỏi Tích phân.</p>
-          </section>
-          <div class="math-footer">
-            <span id="mathAnswerCount"></span>
-            <button id="mathStartAction" class="primary" type="button" hidden></button>
-          </div>
-        </main>
-        <aside class="math-scoreboard">
-          <h3>Bảng điểm</h3>
-          <ol id="mathPlayers"></ol>
-        </aside>
+      <section id="qizzPicker" class="qizz-picker">
+        <p class="qizz-intro">Chọn một trò chơi để bắt đầu</p>
+        <div class="qizz-games">
+          <button class="qizz-game-card" type="button" data-qizz-game="math">
+            <span class="qizz-game-icon" aria-hidden="true">∫</span>
+            <b>Math Game</b>
+            <small>Tích phân · chơi cùng mọi người</small>
+          </button>
+          <button class="qizz-game-card" type="button" data-qizz-game="history">
+            <span class="qizz-game-icon" aria-hidden="true">📜</span>
+            <b>History Game</b>
+            <small>Khám phá lịch sử Việt Nam</small>
+          </button>
+          <button class="qizz-game-card" type="button" data-qizz-game="english">
+            <span class="qizz-game-icon" aria-hidden="true">A</span>
+            <b>English Game</b>
+            <small>Từ vựng và ngữ pháp</small>
+          </button>
+        </div>
+      </section>
+      <section id="qizzLocal" class="qizz-local" hidden>
+        <div class="qizz-local-top">
+          <button id="qizzBackFromLocal" class="qizz-back" type="button">← Chọn game</button>
+          <span id="qizzLocalProgress"></span>
+        </div>
+        <div class="qizz-local-main">
+          <h3 id="qizzLocalQuestion"></h3>
+          <div id="qizzLocalChoices" class="qizz-local-choices"></div>
+          <p id="qizzLocalFeedback" role="status" aria-live="polite"></p>
+          <button id="qizzLocalNext" class="primary" type="button" hidden></button>
+        </div>
+      </section>
+      <div id="mathSession" hidden>
+        <div class="math-statusbar">
+          <span id="mathRoomStatus">Đang kết nối phòng chung…</span>
+          <b id="mathPlayerCount">0/40 người</b>
+        </div>
+        <div class="math-content">
+          <main class="math-main">
+            <div class="math-progress"><div id="mathProgress"></div></div>
+            <div id="mathMessage" role="status" aria-live="polite"></div>
+            <section id="mathLobby" class="math-lobby" hidden>
+              <div class="math-mark" aria-hidden="true">∫</div>
+              <h3>Sẵn sàng chinh phục Tích phân?</h3>
+              <p>15 câu hỏi · 5 Dễ · 5 Trung bình · 5 Khó<br>20 giây mỗi câu · trả lời nhanh và đúng để ghi điểm.</p>
+              <p id="mathRoomHint"></p>
+            </section>
+            <section id="mathQuestionView" hidden>
+              <div class="math-question-meta"><b id="mathLevel"></b><span id="mathTimer"></span></div>
+              <div id="mathPrompt" class="math-prompt"></div>
+              <div id="mathChoices" class="math-choices"></div>
+              <div id="mathExplanation" class="math-explanation" hidden></div>
+            </section>
+            <div id="mathFormulaStatus" class="math-formula-status" role="status" hidden></div>
+            <section id="mathFinished" class="math-finished" hidden>
+              <div class="math-mark" aria-hidden="true">🏆</div>
+              <h3>Hoàn thành Math Game!</h3>
+              <p>Ván chơi gồm 15 câu hỏi Tích phân.</p>
+            </section>
+            <div class="math-footer">
+              <span id="mathAnswerCount"></span>
+              <button id="mathStartAction" class="primary" type="button" hidden></button>
+            </div>
+          </main>
+          <aside class="math-scoreboard">
+            <h3>Bảng điểm</h3>
+            <ol id="mathPlayers"></ol>
+          </aside>
+        </div>
       </div>
     </section>
   </div>
@@ -252,7 +287,7 @@
         <p><b>Nhiệm vụ:</b> tìm <b>10</b> trang lưu bút / kỷ vật đang phát sáng, trò chuyện với bạn bè và thầy cô, đánh kẻng ra chơi và trống vào lớp.</p>
         <p><b>Sân trường:</b> sút bóng giữa sân trong; <kbd>E</kbd> tại vài điểm để <b>xem album ảnh thật</b> trường; <kbd>P</kbd> bắn pháo hoa trên sân khấu; chào cờ 7h (thử: <code>?chuaco</code>).</p>
         <p><b>Cùng nhau:</b> online thấy người khác trên sân; sổ lưu bút chung; nút <b>BXH</b> xem ai sưu tập nhiều nhất; <kbd>T</kbd> chat gần.</p>
-        <p>Đến bảng <b>EM HAM HỌC</b> trong sân trường để vào Math Game Tích phân cùng tối đa 40 người.</p>
+        <p>Đến bảng <b>Qizz Game</b> trong sân trường để chọn Math Game, History Game hoặc English Game.</p>
         <ul class="keys">
           <li><kbd>W A S D</kbd> di chuyển, <kbd>Shift</kbd> chạy, <kbd>Space</kbd> nhảy</li>
           <li>Kéo chuột để xoay camera, lăn chuột để zoom</li>

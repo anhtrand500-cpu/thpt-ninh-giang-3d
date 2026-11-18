@@ -215,6 +215,38 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
   body.touch.playing #touchBtns button { width: 52px; height: 52px; font-size: 14px; }
   body.touch.playing #hud .count { display: none; }
 }
+@media (max-width: 640px) {
+  body.touch.playing #hud .brand,
+  body.touch.playing #hud .count,
+  body.touch.playing #hud .online,
+  body.touch.playing #hud #bxhBtn,
+  body.touch.playing #hud #bookBtn { display: none; }
+  body.touch.playing #hud #musicVolume,
+  body.touch.playing #hud #musicVolumeLabel { display: none; }
+  body.touch.playing #minimap { width: 82px; height: 68px; border-width: 2px; }
+  body.touch.playing #weatherStatus { display: none; }
+  body.touch.playing #joy { width: 104px; height: 104px; bottom: calc(82px + env(safe-area-inset-bottom)); }
+  body.touch.playing #mobileBar { bottom: calc(72px + env(safe-area-inset-bottom)); gap: 5px; }
+  body.touch.playing #mobileBar button { min-height: 44px; padding: 8px 10px; }
+  body.touch.playing #touchBtns { bottom: calc(10px + env(safe-area-inset-bottom)); gap: 7px; }
+  body.touch.playing #touchBtns button { width: 56px; height: 56px; }
+  body.touch.playing #prompt { bottom: calc(136px + env(safe-area-inset-bottom)); }
+  body.touch.playing #chatBar { bottom: calc(132px + env(safe-area-inset-bottom)); }
+  body.touch.playing #chatBar input,
+  body.touch.playing #gbInput,
+  body.touch.playing #clsMsg { font-size: 16px; }
+  #intro .panel { max-height: calc(100dvh - 24px); padding: 18px 18px 20px; }
+  #intro h1 { font-size: 28px; }
+  #intro h1 span { font-size: 17px; }
+  #intro .keys { line-height: 1.65; }
+  #dialog .card,
+  #galleryView .gal,
+  #leaderboard .lb,
+  #guestbook .gb,
+  #classPanel .cls,
+  #mathGame .math-card,
+  #yardGameView .yard-game-card { max-height: calc(100dvh - 20px); }
+}
 
 /* ---- bước tạo nhân vật ---- */
 #intro.ingame { background: rgba(30, 10, 5, 0.45); }
@@ -292,6 +324,27 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
 .math-head small { color: #bfdbfe; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; }
 .math-head h2 { margin: 3px 0 0; font-size: 24px; }
 .math-head .cls-x { color: #fff; }
+.math-head .qizz-back { margin: 0 42px 0 auto; }
+.qizz-back { border: 1px solid rgba(255,255,255,0.55); border-radius: 9px; padding: 8px 11px; background: rgba(255,255,255,0.12); color: inherit; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.qizz-picker { overflow: auto; padding: 28px; }
+.qizz-intro { margin: 0 0 20px; color: #475569; font-size: 17px; font-weight: 700; text-align: center; }
+.qizz-games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.qizz-game-card { min-width: 0; min-height: 210px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 20px 14px; border: 2px solid #dbe3ef; border-radius: 16px; background: #fff; color: #172554; font: inherit; cursor: pointer; text-align: center; transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
+.qizz-game-card:hover { transform: translateY(-3px); border-color: #2563eb; box-shadow: 0 8px 22px rgba(37,99,235,0.14); }
+.qizz-game-card b { font-size: 19px; }
+.qizz-game-card small { color: #64748b; font-size: 13px; line-height: 1.4; }
+.qizz-game-icon { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 18px; background: #dbeafe; color: #1d4ed8; font-size: 32px; font-weight: 800; }
+.qizz-game-card[data-qizz-game="history"] .qizz-game-icon { background: #fef3c7; color: #a16207; }
+.qizz-game-card[data-qizz-game="english"] .qizz-game-icon { background: #dcfce7; color: #15803d; }
+.qizz-local { min-height: 0; overflow: auto; padding: 18px 24px 24px; }
+.qizz-local-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #475569; font-size: 13px; font-weight: 700; }
+.qizz-local-top .qizz-back { border-color: #cbd5e1; background: #fff; color: #334155; }
+.qizz-local-main { width: min(720px, 100%); margin: 24px auto 0; }
+.qizz-local-main h3 { min-height: 56px; margin: 0 0 16px; color: #172554; font-size: 21px; line-height: 1.4; }
+.qizz-local-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#qizzLocalFeedback { min-height: 22px; margin: 14px 0 8px; color: #166534; font-weight: 700; }
+#qizzLocalNext { width: auto; min-width: 180px; padding: 11px 16px; font-size: 15px; box-shadow: 0 4px 0 #1e3a8a; background: #2563eb; }
+#mathSession { min-height: 0; display: flex; flex-direction: column; }
 .math-statusbar { display: flex; justify-content: space-between; gap: 12px; padding: 9px 22px; background: #dbeafe; color: #1e3a8a; font-size: 13px; }
 .math-content { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 16px; padding: 18px; min-height: 0; overflow: auto; }
 .math-main { min-width: 0; display: flex; flex-direction: column; }
@@ -332,6 +385,17 @@ body.touch.playing #talkInvite { top: max(72px, calc(56px + env(safe-area-inset-
   #mathGame .math-card { max-height: 96vh; border-radius: 14px; }
   .math-head { padding: 12px 16px 9px; }
   .math-head h2 { font-size: 20px; }
+  .math-head .qizz-back { margin-right: 36px; padding: 7px 8px; font-size: 12px; }
+  .qizz-picker { padding: 16px; }
+  .qizz-games { grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  .qizz-game-card { min-height: 100px; display: grid; grid-template-columns: 48px minmax(0, 1fr); justify-items: start; column-gap: 12px; row-gap: 3px; padding: 12px; text-align: left; }
+  .qizz-game-icon { grid-row: span 2; width: 44px; height: 44px; border-radius: 13px; font-size: 25px; }
+  .qizz-game-card b { align-self: end; font-size: 16px; }
+  .qizz-game-card small { align-self: start; }
+  .qizz-local { padding: 12px; }
+  .qizz-local-main { margin-top: 16px; }
+  .qizz-local-main h3 { font-size: 18px; }
+  .qizz-local-choices { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .math-statusbar { padding: 8px 14px; font-size: 11px; }
   .math-content { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px; }
   .math-scoreboard { order: 2; }

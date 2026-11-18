@@ -116,7 +116,7 @@ export function setupProfileForm({ onSubmit }) {
   // xem trước nhân vật 3D
   const pv = $('preview');
   const pr = new THREE.WebGLRenderer({ canvas: pv, antialias: true, alpha: true });
-  pr.setPixelRatio(Math.min(devicePixelRatio, 2));
+  pr.setPixelRatio(matchMedia('(pointer: coarse)').matches ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 2));
   pr.outputColorSpace = THREE.SRGBColorSpace;
   const ps = new THREE.Scene();
   ps.add(new THREE.HemisphereLight(0xffffff, 0x8a7a60, 2.2));

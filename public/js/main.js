@@ -6,6 +6,7 @@ import { Collision } from './physics.js';
 import { drumSound, chimeSound, kengSound, clapSound, unlockAudio } from './sound.js';
 import { createMultiplayer } from './multiplayer.js';
 import { INTEGRAL_QUESTIONS, MATH_GAME_MAX_PLAYERS } from './mathGameData.js';
+import { HISTORY_QUESTIONS, ENGLISH_QUESTIONS } from './quizGameData.js';
 import { createVoice } from './voice.js';
 import { toggleClassroomDoor } from './classroom.js';
 import { mountBike, dismountBike, syncBikeVisual, detachBikeRider } from './bike.js';
@@ -20,13 +21,20 @@ import {
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const coarsePointer = matchMedia('(pointer: coarse)').matches;
 
 // ---------- renderer / scene ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: params.has('shot') });
-let pixelCap = Math.min(devicePixelRatio, 2);
+const renderer = new THREE.WebGLRenderer({
+  antialias: !coarsePointer,
+  preserveDrawingBuffer: params.has('shot'),
+  powerPreference: 'high-performance',
+});
+let pixelCap = coarsePointer ? Math.min(devicePixelRatio, 1.25) : Math.min(devicePixelRatio, 2);
 renderer.setPixelRatio(pixelCap);
 function tunePerfForCrowd(n) {
-  const cap = n > 22 ? 1.35 : n > 14 ? 1.6 : Math.min(devicePixelRatio, 2);
+  const cap = coarsePointer
+    ? (n > 22 ? 1 : n > 14 ? 1.1 : Math.min(devicePixelRatio, 1.25))
+    : (n > 22 ? 1.35 : n > 14 ? 1.6 : Math.min(devicePixelRatio, 2));
   if (Math.abs(cap - pixelCap) > 0.05) {
     pixelCap = cap;
     renderer.setPixelRatio(pixelCap);
@@ -89,7 +97,7 @@ const hemisphere = new THREE.HemisphereLight(0xdfefff, 0x7a6a4a, 1.15);
 scene.add(hemisphere);
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.7);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(coarsePointer ? 1024 : 2048, coarsePointer ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, near: 1, far: 220 });
 sun.shadow.bias = -0.0008;
 sun.shadow.normalBias = 0.05;
@@ -240,6 +248,42 @@ function applyProfile(p) {
 }
 
 // ---------- NPCs (nhân vật hư cấu) ----------
+function createTrashCart() {
+  const cart = new THREE.Group();
+  const green = new THREE.MeshStandardMaterial({ color: 0x4c8b45, roughness: 0.9 });
+  const darkGreen = new THREE.MeshStandardMaterial({ color: 0x315d32, roughness: 0.9 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x777d7c, metalness: 0.45, roughness: 0.55 });
+  const bag = new THREE.MeshStandardMaterial({ color: 0x242526, roughness: 1 });
+
+  function add(geometry, material, x, y, z, rz = 0, rx = 0) {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.rotation.set(rx, 0, rz);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    cart.add(mesh);
+    return mesh;
+  }
+
+  add(new THREE.BoxGeometry(0.84, 0.08, 0.86), metal, 0, 0.43, 0.95);
+  add(new THREE.BoxGeometry(0.78, 0.66, 0.06), green, 0, 0.79, 1.35);
+  add(new THREE.BoxGeometry(0.78, 0.66, 0.06), green, 0, 0.79, 0.55);
+  for (const side of [-1, 1]) add(new THREE.BoxGeometry(0.06, 0.66, 0.8), green, side * 0.39, 0.79, 0.95);
+  add(new THREE.BoxGeometry(0.7, 0.04, 0.72), darkGreen, 0, 1.14, 0.95);
+
+  for (const side of [-1, 1]) {
+    add(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 14), metal, side * 0.47, 0.27, 0.95, Math.PI / 2);
+    add(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 12), darkGreen, side * 0.53, 0.27, 0.95, Math.PI / 2);
+    add(new THREE.CylinderGeometry(0.035, 0.035, 0.56, 10), metal, side * 0.3, 0.88, 0.27, 0, Math.PI / 2);
+    add(new THREE.CylinderGeometry(0.045, 0.045, 0.16, 10), darkGreen, side * 0.3, 0.91, 0.04, Math.PI / 2);
+  }
+
+  const bagGeometry = new THREE.SphereGeometry(0.23, 12, 10);
+  add(bagGeometry, bag, -0.16, 1.29, 0.88).scale.set(0.9, 0.75, 0.9);
+  add(bagGeometry, bag, 0.17, 1.3, 1.07).scale.set(0.9, 0.78, 0.9);
+  return cart;
+}
+
 const NPC_DEFS = [
   { name: 'Lan', kind: 'aodai', x: -8, z: 4, lines: ['Hôm nay thứ Hai nên tụi mình mặc áo dài đấy!', 'Cậu đã tìm thấy trang lưu bút nào chưa? Nghe nói có một trang ở chỗ nhà xe.'] },
   { name: 'Minh', kind: 'boy', x: 2, z: 21, bag: 0x333333, lines: ['Chiều nay lớp mình đá bóng với 12A2, cậu ra cổ vũ nhé!', 'Trống trên sân khấu là để vào lớp, còn kẻng treo ở gốc cây cổ thụ bên trái sân trong là báo ra chơi đấy.'] },
@@ -273,6 +317,9 @@ const NPC_DEFS = [
     menu: ['• Kem que / sữa chua hộp: 8–12k', '• Xiên que, nem chua: 10k', '• Kẹo kéo / bánh gạo: 5k'],
     lines: ['Kem que, kẹo kéo, sữa chua hộp — bọn học sinh hay mua nhất.', 'Bà có xiên que: thịt xiên, nem chua rán.', 'Trời lạnh bà bán khoai lang nướng luôn.'],
     greet: 'Ăn vặt gì không cháu? Kẹo que còn nhiều.' },
+  { name: 'Cô Mận', kind: 'girl', shirt: 0x398044, pants: 0x354238, hairBun: true, x: 27, z: 24, trashCollector: true,
+    lines: ['Sân trường sạch đẹp là nhờ mọi người cùng bỏ rác đúng chỗ.', 'Cô đang thu gom rác quanh sân, em nhớ giữ gìn vệ sinh nhé.'],
+    greet: 'Chào em, cô Mận đang dọn sân trường đây!' },
   { name: 'Thầy chủ nhiệm', kind: 'boy', shirt: 0x9fc3e6, pants: 0x4a4a4a, x: -13, z: -19, static: true, teacher: true, face: 0.6, lines: ['Chào em! Nhớ học bài cũ trước khi vào lớp nhé.', 'Trường mình thành lập từ tháng 9 năm 1961 đấy, đã hơn 65 năm rồi.'] },
 ];
 const fieldPlayers = Array.from({ length: 12 }, (_, i) => {
@@ -295,7 +342,8 @@ const fieldPlayers = Array.from({ length: 12 }, (_, i) => {
   };
 });
 const npcs = [...NPC_DEFS, ...fieldPlayers].map(d => {
-  const char = createCharacter({ kind: d.kind, bag: d.bag ?? null, shirt: d.shirt, pants: d.pants, armband: d.armband, cap: d.cap, badge: d.teacher || d.staff ? false : undefined });
+  const char = createCharacter({ kind: d.kind, bag: d.bag ?? null, shirt: d.shirt, pants: d.pants, armband: d.armband, cap: d.cap, hairBun: d.hairBun, badge: d.teacher || d.staff ? false : undefined });
+  if (d.trashCollector) char.root.add(createTrashCart());
   scene.add(char.root);
   return { ...d, char, pos: new THREE.Vector3(d.x, 0, d.z), feetY: 0, facing: d.face ?? Math.random() * 6, target: null, wait: Math.random() * 3, stuck: 0, talkT: 0, lineIdx: 0, bellT: 0 };
 });
@@ -307,6 +355,9 @@ function pickTarget(n) {
     const x = -125 + (Math.random() - 0.5) * 52;
     const z = -45 + (Math.random() - 0.5) * 34;
     return new THREE.Vector3(x, 0, z);
+  }
+  if (n.trashCollector) {
+    return new THREE.Vector3(24 + Math.random() * 10, 0, 20 + Math.random() * 10);
   }
   if (n.gatePatrol) {
     const { homeX0, homeX1, homeZ0, homeZ1 } = n;
@@ -349,13 +400,14 @@ const overviewCameraPosition = new THREE.Vector3();
 const overviewRotationSpeed = 2 * Math.PI / 75;
 const followCameraPosition = new THREE.Vector3();
 const blendedCameraTarget = new THREE.Vector3();
-let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, mathOpen = false, yardGameOpen = false;
+let started = false, dialogOpen = false, menuOpen = false, mapOn = true, bookOpen = false, chatOpen = false, classOpen = false, qizzOpen = false, mathOpen = false, yardGameOpen = false;
 let galleryOpen = false, boardOpen = false;
 let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
+let localQuiz = null;
 let yardGamesUnmount = null;
 
 function uiBlocksGame() {
-  return menuOpen || bookOpen || chatOpen || classOpen || mathOpen || yardGameOpen || dialogOpen || galleryOpen || boardOpen
+  return menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || dialogOpen || galleryOpen || boardOpen
     || (!$('intro').hidden && !started);
 }
 function formFocusBlocksKeys() {
@@ -389,10 +441,10 @@ function toggleOverview() {
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
   if (!started || menuOpen || formFocusBlocksKeys()) return;
-  if ((mathOpen || yardGameOpen) && e.code !== 'KeyE' && e.code !== 'Escape') return;
+  if ((qizzOpen || yardGameOpen) && e.code !== 'KeyE' && e.code !== 'Escape') return;
   if (e.code === 'KeyE' || e.code === 'Enter') { if (!e.repeat) use(); e.preventDefault(); return; }
   if (e.code === 'Escape') {
-    if (mathOpen) closeMathGame();
+    if (qizzOpen) closeQizzGame();
     else if (yardGameOpen) closeYardGames();
     else closeDialog();
     return;
@@ -1111,10 +1163,128 @@ function submitMathAnswer(choice) {
   }
 }
 
+const LOCAL_QUIZZES = {
+  history: { title: 'History Game', questions: HISTORY_QUESTIONS },
+  english: { title: 'English Game', questions: ENGLISH_QUESTIONS },
+};
+
+function renderLocalQuiz() {
+  if (!localQuiz) return;
+  const { game, index, score, completed } = localQuiz;
+  const questions = LOCAL_QUIZZES[game].questions;
+  $('qizzLocalProgress').textContent = completed
+    ? `${LOCAL_QUIZZES[game].title} · ${score}/${questions.length} điểm`
+    : `${LOCAL_QUIZZES[game].title} · Câu ${index + 1}/${questions.length} · ${score} điểm`;
+  const choices = $('qizzLocalChoices');
+  choices.replaceChildren();
+  const next = $('qizzLocalNext');
+  if (completed) {
+    $('qizzLocalQuestion').textContent = `Hoàn thành ${LOCAL_QUIZZES[game].title}!`;
+    $('qizzLocalFeedback').textContent = `Bạn trả lời đúng ${score}/${questions.length} câu.`;
+    next.textContent = 'Chơi lại';
+    next.hidden = false;
+    return;
+  }
+  const question = questions[index];
+  $('qizzLocalQuestion').textContent = question.prompt;
+  $('qizzLocalFeedback').textContent = '';
+  next.hidden = true;
+  question.choices.forEach((text, choiceIndex) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'math-choice';
+    const letter = document.createElement('span');
+    letter.className = 'math-choice-letter';
+    letter.textContent = String.fromCharCode(65 + choiceIndex);
+    const label = document.createElement('span');
+    label.textContent = text;
+    button.append(letter, label);
+    button.addEventListener('click', () => {
+      if (localQuiz?.answered) return;
+      localQuiz.answered = true;
+      const correct = choiceIndex === question.correctIndex;
+      if (correct) localQuiz.score++;
+      for (const option of choices.querySelectorAll('.math-choice')) {
+        const selected = option === button;
+        const isCorrect = Number(option.dataset.choice) === question.correctIndex;
+        option.disabled = true;
+        option.classList.toggle('correct', isCorrect);
+        option.classList.toggle('incorrect', selected && !correct);
+      }
+      $('qizzLocalFeedback').textContent = correct ? 'Chính xác!' : 'Chưa đúng, hãy thử câu tiếp theo.';
+      next.textContent = index === questions.length - 1 ? 'Xem kết quả' : 'Câu tiếp theo';
+      next.hidden = false;
+    });
+    button.dataset.choice = String(choiceIndex);
+    choices.appendChild(button);
+  });
+}
+
+function openQizzGame() {
+  qizzOpen = true;
+  mathOpen = false;
+  localQuiz = null;
+  $('mathTitle').textContent = 'Qizz Game';
+  $('mathGame').hidden = false;
+  $('qizzPicker').hidden = false;
+  $('qizzLocal').hidden = true;
+  $('mathSession').hidden = true;
+  $('qizzBackFromMath').hidden = true;
+  releaseGameFocus();
+}
+
+function backToQizzPicker() {
+  mathOpen = false;
+  localQuiz = null;
+  $('mathTitle').textContent = 'Qizz Game';
+  if (mathCountdownTimer) clearInterval(mathCountdownTimer);
+  mathCountdownTimer = null;
+  $('qizzPicker').hidden = false;
+  $('qizzLocal').hidden = true;
+  $('mathSession').hidden = true;
+  $('qizzBackFromMath').hidden = true;
+}
+
+function openLocalQuiz(game) {
+  if (!LOCAL_QUIZZES[game]) return;
+  qizzOpen = true;
+  mathOpen = false;
+  localQuiz = { game, index: 0, score: 0, answered: false, completed: false };
+  $('mathTitle').textContent = LOCAL_QUIZZES[game].title;
+  $('qizzPicker').hidden = true;
+  $('qizzLocal').hidden = false;
+  $('mathSession').hidden = true;
+  $('qizzBackFromMath').hidden = true;
+  renderLocalQuiz();
+  releaseGameFocus();
+}
+
+function advanceLocalQuiz() {
+  if (!localQuiz) return;
+  if (localQuiz.completed) {
+    openLocalQuiz(localQuiz.game);
+    return;
+  }
+  const questionCount = LOCAL_QUIZZES[localQuiz.game].questions.length;
+  if (localQuiz.index + 1 >= questionCount) localQuiz.completed = true;
+  else {
+    localQuiz.index++;
+    localQuiz.answered = false;
+  }
+  renderLocalQuiz();
+}
+
 function openMathGame() {
+  qizzOpen = true;
   mathOpen = true;
+  localQuiz = null;
+  $('mathTitle').textContent = 'Math Game';
   mathRenderedKey = '';
   $('mathGame').hidden = false;
+  $('qizzPicker').hidden = true;
+  $('qizzLocal').hidden = true;
+  $('mathSession').hidden = false;
+  $('qizzBackFromMath').hidden = false;
   if (mathCountdownTimer) clearInterval(mathCountdownTimer);
   mathCountdownTimer = setInterval(updateMathTimer, 250);
   $('mathMessage').textContent = netStatus === 'solo'
@@ -1159,8 +1329,10 @@ function closeYardGames() {
   canvas.focus?.();
 }
 
-function closeMathGame() {
+function closeQizzGame() {
+  qizzOpen = false;
   mathOpen = false;
+  localQuiz = null;
   $('mathGame').hidden = true;
   if (mathCountdownTimer) clearInterval(mathCountdownTimer);
   mathCountdownTimer = null;
@@ -1173,7 +1345,16 @@ function mathStartAction() {
   if (!sent) $('mathMessage').textContent = 'Chưa kết nối được với phòng chơi.';
 }
 
-$('mathClose').addEventListener('click', closeMathGame);
+$('mathClose').addEventListener('click', closeQizzGame);
+$('qizzBackFromMath').addEventListener('click', backToQizzPicker);
+$('qizzBackFromLocal').addEventListener('click', backToQizzPicker);
+$('qizzLocalNext').addEventListener('click', advanceLocalQuiz);
+for (const button of document.querySelectorAll('[data-qizz-game]')) {
+  button.addEventListener('click', () => {
+    if (button.dataset.qizzGame === 'math') openMathGame();
+    else openLocalQuiz(button.dataset.qizzGame);
+  });
+}
 $('mathStartAction').addEventListener('click', mathStartAction);
 $('yardGameClose').addEventListener('click', closeYardGames);
 $('afkReconnect').addEventListener('click', () => {
@@ -1567,7 +1748,7 @@ function greeting(n) {
 function use() {
   unlockAudio();
   if (yardGameOpen) { closeYardGames(); return; }
-  if (mathOpen) { closeMathGame(); return; }
+  if (qizzOpen) { closeQizzGame(); return; }
   if (bookOpen) { closeGuestbook(); return; }
   if (boardOpen) { closeLeaderboard(); return; }
   if (galleryOpen) { galleryOpen = false; closeGallery(); releaseGameFocus(); return; }
@@ -1622,8 +1803,8 @@ function use() {
     galleryOpen = true;
     return;
   }
-  if (current.action === 'math-game') {
-    openMathGame();
+  if (current.action === 'qizz-game') {
+    openQizzGame();
     return;
   }
   if (current.action === 'yard-game') {
@@ -1802,7 +1983,7 @@ function updatePlayer(dt) {
   iz -= joy.y;
   const l = Math.hypot(ix, iz);
   if (l > 1) { ix /= l; iz /= l; }
-  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || mathOpen || yardGameOpen || !started || overviewOn) ix = iz = 0;
+  if (dialogOpen || menuOpen || bookOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || !started || overviewOn) ix = iz = 0;
   const wantMove = Math.hypot(ix, iz) > 0.08;
   if (player.pose && wantMove) clearPlayerPose();
   if (player.pose === 'sit' || player.pose === 'lie') ix = iz = 0;
@@ -1917,7 +2098,7 @@ function updateNPCs(dt) {
         n.target = null;
         n.wait = n.bellT > 0 && n.mode === 'class' ? 6 : n.bellT > 0 ? 0.3 : 2 + Math.random() * 5;
       } else {
-        const v = n.gatePatrol ? 1.05 : n.bellT > 0 ? 2.6 : 1.3;
+        const v = n.trashCollector ? 0.65 : n.gatePatrol ? 1.05 : n.bellT > 0 ? 2.6 : 1.3;
         const ox = n.pos.x, oz = n.pos.z;
         n.pos.addScaledVector(tmp.normalize(), v * dt);
         col.resolve(n.pos, n.feetY, 0.3);
@@ -2004,7 +2185,17 @@ const SHOTS = {
 const CAM = (() => { const c = params.get('cam')?.split(',').map(Number); return c?.length === 6 ? [c.slice(0, 3), c.slice(3)] : null; })();
 const clock = new THREE.Clock();
 let mapTick = 0;
-function frame() {
+let lastMobileFrame = 0;
+function frame(timestamp = performance.now()) {
+  if (document.hidden) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  if (coarsePointer && timestamp - lastMobileFrame < 1000 / 30) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  lastMobileFrame = timestamp;
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   updatePlayer(dt);
   updateNPCs(dt);
@@ -2045,6 +2236,12 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(pixelCap);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clock.stop();
+  else clock.start();
 });
 
 function start() {
