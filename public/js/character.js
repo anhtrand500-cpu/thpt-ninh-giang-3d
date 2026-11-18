@@ -396,10 +396,11 @@ export function nameTag(lines) {
   const x = c.getContext('2d');
   const font = '"Helvetica Neue", Arial, sans-serif';
   x.font = `bold 40px ${font}`;
-  const w1 = x.measureText(lines[0]).width;
-  x.font = `28px ${font}`;
-  const w2 = lines[1] ? x.measureText(lines[1]).width : 0;
-  c.width = Math.ceil(Math.max(w1, w2) + 40);
+  const widths = lines.map((line, index) => {
+    x.font = index === 0 ? `bold 40px ${font}` : `28px ${font}`;
+    return x.measureText(line).width;
+  });
+  c.width = Math.ceil(Math.max(...widths) + 40);
   c.height = lines[1] ? 96 : 60;
   x.fillStyle = 'rgba(142,42,34,0.86)';
   x.beginPath();
@@ -422,5 +423,45 @@ export function nameTag(lines) {
   sp.scale.set((h * c.width) / c.height, h, 1);
   sp.position.y = 2.25;
   sp.renderOrder = 10;
+  return sp;
+}
+
+export function titleBadge(title = 'Siêu trí tuệ') {
+  const c = document.createElement('canvas');
+  const x = c.getContext('2d');
+  const font = '"Helvetica Neue", Arial, sans-serif';
+  c.width = 310;
+  c.height = 76;
+
+  x.fillStyle = 'rgba(44,31,20,0.82)';
+  x.beginPath();
+  x.roundRect(18, 10, 274, 56, 10);
+  x.fill();
+  x.strokeStyle = 'rgba(255,198,74,0.95)';
+  x.lineWidth = 4;
+  x.beginPath();
+  x.roundRect(20, 12, 270, 52, 9);
+  x.stroke();
+
+  x.fillStyle = '#ffe7a3';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.font = `bold 34px ${font}`;
+  x.fillText(`★ ${title}`, c.width / 2, c.height / 2 + 1);
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: t,
+    transparent: true,
+    depthWrite: false,
+  }));
+  sp.scale.set(2.05, 0.51, 1);
+  sp.position.y = 3.02;
+  sp.renderOrder = 12;
+  sp.onBeforeRender = () => {
+    const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.025;
+    sp.scale.set(2.05 * pulse, 0.51 * pulse, 1);
+  };
   return sp;
 }

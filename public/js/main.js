@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
-import { createCharacter, lookFromProfile, nameTag, speechBubble } from './character.js';
-import { setupProfileForm, loadProfile, DEFAULT_PROFILE, tagLines, isProfileComplete, profileClassCode, classCodeFromParts } from './profile.js';
+import { createCharacter, lookFromProfile, nameTag, titleBadge, speechBubble } from './character.js';
+import { setupProfileForm, loadProfile, DEFAULT_PROFILE, tagLines, isProfileComplete, profileClassCode, classCodeFromParts, saveProfile, honorific, schoolYears } from './profile.js';
 import { Collision } from './physics.js';
 import { drumSound, chimeSound, kengSound, clapSound, unlockAudio } from './sound.js';
 import { createMultiplayer } from './multiplayer.js';
@@ -238,10 +238,22 @@ function applyProfile(p) {
   if (player.char) scene.remove(player.char.root);
   player.char = createCharacter(lookFromProfile(p));
   player.char.root.add(nameTag(tagLines(p)));
+  if (p.superIntellect) player.char.root.add(titleBadge('Siêu trí tuệ'));
   scene.add(player.char.root);
-  const [l1, l2] = tagLines(p);
-  $('hudName').textContent = l1;
-  $('hudInfo').textContent = l2;
+  const lines = tagLines(p);
+  $('hudName').textContent = p.superIntellect ? (p.role === 'teacher' ? `${honorific(p)} ${p.name}` : p.name) : lines[0];
+  $('hudInfo').textContent = p.superIntellect
+    ? (p.role === 'teacher' ? `GV ${p.subject} · từ năm ${p.year} · 🏆 Siêu trí tuệ` : `Lớp ${p.className} · Niên khóa ${schoolYears(p)} · 🏆 Siêu trí tuệ`)
+    : lines[1];
+}
+
+function awardSuperIntellect() {
+  if (profile.superIntellect) return;
+  profile = { ...profile, superIntellect: true };
+  saveProfile(profile);
+  applyProfile(profile);
+  mp?.hello?.();
+  toast('Danh hiệu mới: Siêu trí tuệ! Danh hiệu đã lưu trên nhân vật.', 5200);
   for (const n of npcs) n.greeted = false;
   mp?.hello();
   mp?.syncClassFromProfile?.({ auto: true });
@@ -450,6 +462,7 @@ let started = false, dialogOpen = false, menuOpen = false, mapOn = true, chatOpe
 let landscapeRequired = false;
 let galleryOpen = false;
 let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
+let mathPerfectCount = 0;
 let localQuiz = null;
 let yardGamesUnmount = null;
 let caroPanelOpen = false, caroPlayers = [], caroIncoming = null, caroIncomingTimer = null;
@@ -696,8 +709,29 @@ function setupBackgroundMusic() {
     { name: 'Cho Tôi Xin Một Vé Đi Tuổi Thơ (HITStory Live Version)', src: new URL('../audio/Cho Tôi Xin Một Vé Đi Tuổi Thơ (HITStory Live Version).mp3', import.meta.url).href },
     { name: 'Buồn Thì Cứ Khóc Đi', src: new URL('../audio/Buồn Thì Cứ Khóc Đi.mp3', import.meta.url).href },
   ];
-  let trackIndex = 0;
+  let trackIndex = -1;
+  let shuffledOrder = [];
+  let shuffledPosition = 0;
   audio.preload = 'none';
+
+  function shuffleTrackOrder() {
+    shuffledOrder = tracks.map((_, index) => index);
+    for (let i = shuffledOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledOrder[i], shuffledOrder[j]] = [shuffledOrder[j], shuffledOrder[i]];
+    }
+    if (trackIndex >= 0 && shuffledOrder[0] === trackIndex && shuffledOrder.length > 1) {
+      [shuffledOrder[0], shuffledOrder[1]] = [shuffledOrder[1], shuffledOrder[0]];
+    }
+    shuffledPosition = 0;
+  }
+
+  function getRandomTrackIndex() {
+    if (shuffledPosition >= shuffledOrder.length) shuffleTrackOrder();
+    return shuffledOrder[shuffledPosition++];
+  }
+
+  shuffleTrackOrder();
 
   const savedVolume = localStorage.getItem(volumeKey);
   const parsedVolume = savedVolume === null ? NaN : Number(savedVolume);
@@ -732,7 +766,7 @@ function setupBackgroundMusic() {
         toast('Không phát được nhạc nền.', 4000);
       });
     } else {
-      playTrack(trackIndex);
+      playTrack(getRandomTrackIndex());
     }
   }
 
@@ -742,7 +776,7 @@ function setupBackgroundMusic() {
   });
   volume.addEventListener('input', syncVolume);
   audio.addEventListener('ended', () => {
-    playTrack((trackIndex + 1) % tracks.length);
+    playTrack(getRandomTrackIndex());
   });
   audio.addEventListener('playing', () => {
     button.classList.add('is-playing');
@@ -1409,6 +1443,18 @@ function updateMathTimer() {
 function renderMathGame(state) {
   const previous = mathState;
   mathState = state;
+  if (state.status === 'lobby' && previous?.status !== 'lobby') mathPerfectCount = 0;
+  if (state.status === 'reveal') {
+    const revealKey = `${state.questionIndex}:${state.status}`;
+    if (mathRenderedKey !== revealKey) {
+      const own = state.players.find(player => player.id === state.myId);
+      if (own?.correct) mathPerfectCount++;
+      mathRenderedKey = revealKey;
+    }
+  }
+  if (state.status === 'finished' && mathPerfectCount === state.questionCount) {
+    awardSuperIntellect();
+  }
   if (state.status !== 'question' || previous?.status !== 'question' || previous.questionIndex !== state.questionIndex) {
     mathPendingChoice = null;
   }
@@ -1506,6 +1552,7 @@ function renderLocalQuiz() {
   if (completed) {
     $('qizzLocalQuestion').textContent = `Hoàn thành ${LOCAL_QUIZZES[game].title}!`;
     $('qizzLocalFeedback').textContent = `Bạn trả lời đúng ${score}/${questions.length} câu.`;
+    if (score === questions.length) awardSuperIntellect();
     next.textContent = 'Chơi lại';
     next.hidden = false;
     return;
@@ -1673,6 +1720,8 @@ function closeQizzGame() {
 
 function mathStartAction() {
   if (!mathState?.isParticipant) return;
+  mathPerfectCount = 0;
+  mathRenderedKey = '';
   const sent = mathState.status === 'finished' ? mp.mathRematch() : mp.mathStart();
   if (!sent) $('mathMessage').textContent = 'Chưa kết nối được với phòng chơi.';
 }
@@ -1709,7 +1758,7 @@ $('chatClose').addEventListener('click', closeChat);
 
 // ---------- trò chuyện riêng 1-1 (mời → đồng ý) + gọi thoại ----------
 let talk = null, invite = null, inviteTimer = 0, ownBubble = null, ownBubbleTimer = 0;
-const remoteName = r => (r?.profile ? tagLines(r.profile)[0] : 'Bạn ấy');
+const remoteName = r => (r?.profile ? (r.profile.name || tagLines(r.profile)[0]) : 'Bạn ấy');
 function sayOwn(text) {
   if (ownBubble) player.char.root.remove(ownBubble);
   ownBubble = speechBubble(text);
@@ -2578,7 +2627,9 @@ function start() {
 const profileForm = setupProfileForm({
   onSubmit(p) {
     unlockAudio();
-    applyProfile(p);
+    const saved = { ...p, superIntellect: !!profile.superIntellect };
+    saveProfile(saved);
+    applyProfile(saved);
     if (!started) start();
     else {
       menuOpen = false;
@@ -2598,8 +2649,11 @@ function refreshResumeWelcome() {
   const block = $('resumeBlock');
   if (!block) return;
   if (show) {
-    const [line1, line2] = tagLines(saved);
-    $('resumeHello').textContent = `Chơi tiếp với nhân vật đã lưu: ${line1}${line2 ? ` · ${line2}` : ''}`;
+    const name = saved.role === 'teacher' ? `${honorific(saved)} ${saved.name}` : saved.name;
+    const classLine = saved.role === 'teacher'
+      ? `GV ${saved.subject} · từ năm ${saved.year}`
+      : `Lớp ${saved.className} · Niên khóa ${schoolYears(saved)}`;
+    $('resumeHello').textContent = `Chơi tiếp với nhân vật đã lưu: ${name} · ${classLine}${saved.superIntellect ? ' · 🏆 Siêu trí tuệ' : ''}`;
     block.hidden = false;
   } else {
     block.hidden = true;

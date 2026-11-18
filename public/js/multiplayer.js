@@ -1,6 +1,6 @@
 // Kết nối nhiều người chơi qua WebSocket (/api/ws) — Durable Object trên Cloudflare Workers.
 import * as THREE from 'three';
-import { createCharacter, lookFromProfile, nameTag, speechBubble } from './character.js';
+import { createCharacter, lookFromProfile, nameTag, titleBadge, speechBubble } from './character.js';
 import { tagLines, profileClassCode } from './profile.js';
 import { attachBikeRider, createBikeVisual, detachBikeRider, syncBikeVisual } from './bike.js';
 
@@ -63,6 +63,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
         } else scene.remove(oldRoot);
         r.char = createCharacter(lookFromProfile(profile));
         r.char.root.add(nameTag(tagLines(profile)));
+        if (profile.superIntellect) r.char.root.add(titleBadge('Siêu trí tuệ'));
         scene.add(r.char.root);
         r.profile = profile;
         r.profKey = profKey;
@@ -71,6 +72,7 @@ export function createMultiplayer({ scene, col, getProfile, getPlayer, callbacks
     }
     const char = createCharacter(lookFromProfile(profile));
     char.root.add(nameTag(tagLines(profile)));
+    if (profile.superIntellect) char.root.add(titleBadge('Siêu trí tuệ'));
     scene.add(char.root);
     r = {
       id,
