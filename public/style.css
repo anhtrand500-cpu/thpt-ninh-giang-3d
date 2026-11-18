@@ -62,6 +62,67 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 
 #dialog .dialog-donation p { margin: 0 0 10px; color: #8e2a22; font-size: 14px; font-weight: 700; }
 #dialog .dialog-donation img { display: block; width: min(320px, 100%); max-height: 50vh; object-fit: contain; margin: 0 auto; border-radius: 8px; background: #fff; }
 
+#lanternWish {
+  position: fixed;
+  inset: 0;
+  z-index: 42;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(11, 18, 39, 0.52);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.lantern-card {
+  position: relative;
+  width: min(700px, 94vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 28px 44px 20px;
+  border-radius: 28px;
+  background: #fdfdfb;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.38);
+  color: #24324d;
+  user-select: text;
+}
+.lantern-card > small { display: block; margin-bottom: 18px; color: #ef3b46; font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+.lantern-card h2 { margin: 0 0 8px; color: #202d44; font-size: clamp(28px, 4vw, 42px); line-height: 1.12; }
+.lantern-card h2::after { content: " 🏮"; color: #ef5d34; }
+.lantern-lead { margin: 0 0 20px !important; color: #44516a; font-size: 17px; line-height: 1.5; }
+.lantern-x { position: absolute; top: 18px; right: 22px; width: 38px; height: 38px; border: 0; border-radius: 50%; background: transparent; color: #ef5d34; font-size: 28px; line-height: 1; cursor: pointer; }
+.lantern-label { margin: 0 0 10px !important; font-size: 15px; color: #33415d; }
+.lantern-presets { display: flex; flex-wrap: wrap; gap: 10px; }
+.lantern-presets button {
+  border: 2px solid #ffd58d;
+  border-radius: 999px;
+  padding: 9px 15px;
+  background: #fff;
+  color: #2f3c57;
+  font: 700 14px/1.2 inherit;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(255, 166, 66, 0.12);
+}
+.lantern-presets button.active { border-color: #ef4d3f; background: #fff2ed; color: #df3d32; }
+.lantern-custom { display: block; margin-top: 16px; }
+.lantern-custom span { display: block; margin-bottom: 7px; color: #58647a; font-size: 14px; font-weight: 700; }
+.lantern-custom textarea { width: 100%; min-height: 72px; resize: vertical; border: 2px solid #e7d8b8; border-radius: 12px; padding: 11px 12px; font: inherit; color: #26324a; outline: none; user-select: text; }
+.lantern-custom textarea:focus { border-color: #ef7b37; box-shadow: 0 0 0 3px rgba(239,123,55,0.12); }
+.lantern-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.lantern-actions button { min-height: 56px; border: 0; border-radius: 14px; font: 800 15px/1.25 inherit; cursor: pointer; }
+.lantern-secondary { background: #fff; color: #1f3d88; border: 3px solid #263b66 !important; }
+.lantern-primary { background: linear-gradient(135deg, #ff4d24, #ff8a16); color: #fff; box-shadow: 0 10px 22px rgba(255, 94, 25, 0.28); }
+.lantern-done { display: block; margin: 18px 0 0; border: 2px solid #e6e7eb; border-radius: 12px; padding: 8px 12px; background: #fff; color: #536078; font: 700 14px inherit; cursor: pointer; }
+.lantern-done kbd { margin-left: 6px; }
+@media (max-width: 640px) {
+  .lantern-card { width: min(94vw, 700px); padding: 22px 18px 16px; border-radius: 20px; }
+  .lantern-card h2 { padding-right: 28px; font-size: 25px; }
+  .lantern-card > small { margin-bottom: 12px; font-size: 12px; }
+  .lantern-lead { font-size: 14px; }
+  .lantern-presets button { font-size: 12px; padding: 8px 10px; }
+  .lantern-actions { grid-template-columns: 1fr; }
+  .lantern-actions button { min-height: 48px; }
+}
+
 #galleryView { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.38); z-index: 30; }
 #galleryView .gal { width: min(560px, 94vw); max-height: 88vh; overflow: auto; background: #fffaf0; border-radius: 16px; padding: 22px 24px 18px; border-top: 6px solid #c62828; box-shadow: 0 18px 50px rgba(0,0,0,0.3); position: relative; }
 #galleryView img { display: block; width: 100%; max-height: 52vh; object-fit: contain; border-radius: 10px; margin: 8px 0 14px; background: #e8e0d0; }

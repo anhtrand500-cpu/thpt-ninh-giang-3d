@@ -955,7 +955,7 @@ export function buildWorld(scene) {
   W.interact.push({
     x: 0, z: 36.5, r: 4.5, label: 'Xem cổng trường',
     title: 'Cổng trường THPT Ninh Giang',
-    text: '193 Nguyễn Lương Bằng, thị trấn Ninh Giang, Hải Phòng.\n\nCổng trường mái ngói đỏ, trụ và viền màu kem, hai mảng tường gạch có ô cửa tròn, bảng tuyển sinh ở giữa và cánh cổng sắt đen mở vào sân.',
+    text: '193 Nguyễn Lương Bằng, thị trấn Ninh Giang, Hải Dương.\n\nCổng trường mái ngói đỏ, trụ và viền màu kem, hai mảng tường gạch có ô cửa tròn, bảng tuyển sinh ở giữa và cánh cổng sắt đen mở vào sân.',
   });
   W.interact.push({
     x: 15, z: 37.6, r: 3, label: 'Đọc khẩu hiệu',
@@ -1173,9 +1173,121 @@ export function buildWorld(scene) {
     });
     W.interact.push({
       x: fireX, z: fireZ + 1.6, r: 2.5,
-      label: 'Xem lửa trại',
-      title: 'Lửa trại buổi tối',
-      text: 'Lửa trại được thắp mỗi ngày từ 19:00 đến trước 06:00 theo giờ Việt Nam.',
+      label: 'Ngồi bên lửa trại',
+      action: 'campfire-sit',
+    });
+
+    // Khu thả đèn trời đối diện lửa trại, nằm bên trái cụm ghế.
+    const lanternX = fireX - 20;
+    const lanternZ = fireZ - 0.8;
+    box(M(0x6f4931), WORLD, 3.2, 0.18, 1.7, lanternX, 0.18, lanternZ, { ry: 0.08 });
+    box(M(0x9e6a3c), WORLD, 3.0, 0.12, 1.5, lanternX, 0.36, lanternZ, { ry: 0.08 });
+    for (const s of [-1, 1]) {
+      cyl(M(0x34403e), WORLD, 0.11, 3.1, lanternX + s * 4.7, 0, lanternZ - 2.2);
+      box(M(0x34403e), WORLD, 9.5, 0.12, 0.12, lanternX, 3.05, lanternZ - 2.2);
+    }
+    for (let i = 0; i < 6; i++) {
+      const lx = lanternX - 4.1 + i * 1.64;
+      const lz = lanternZ - 2.2;
+      box(M(0x3b3a32), WORLD, 0.025, 1.05, 0.025, lx, 2.5, lz);
+      const lantern = new THREE.Group();
+      lantern.position.set(lx, 1.95 + (i % 2) * 0.12, lz);
+      const lanternBody = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 10, 8),
+        new THREE.MeshStandardMaterial({
+          color: i % 3 === 0 ? 0xffb52b : 0xf04a32,
+          emissive: i % 3 === 0 ? 0xff8a18 : 0xb82b18,
+          emissiveIntensity: 0.72,
+          roughness: 0.45,
+          side: THREE.FrontSide,
+        }),
+      );
+      lanternBody.scale.set(0.72, 1.12, 0.72);
+      lantern.add(lanternBody);
+      for (const y of [0.42, 0.12, -0.18, -0.42]) lantern.add(new THREE.Mesh(
+        new THREE.TorusGeometry(y === 0.42 || y === -0.42 ? 0.28 : 0.36, 0.025, 5, 12),
+        new THREE.MeshStandardMaterial({ color: 0x5a3424, roughness: 0.7 }),
+      ).translateY(y));
+      lantern.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.22, 0.16, 10),
+        M(0x6a4028),
+      ).translateY(0.58));
+      lantern.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(0.26, 0.26, 0.12, 10),
+        M(0x6a4028),
+      ).translateY(-0.58));
+      const glow = new THREE.PointLight(0xffa13a, 12, 5.5, 2);
+      glow.position.y = 0.05;
+      lantern.add(glow);
+      root.add(lantern);
+    }
+
+    const releasedLanterns = [];
+    W.launchLantern = (wish) => {
+      const lantern = new THREE.Group();
+      lantern.position.set(lanternX + (releasedLanterns.length % 3 - 1) * 0.55, 1.15, lanternZ);
+      lantern.userData.wish = String(wish).slice(0, 120);
+      lantern.userData.age = 0;
+      lantern.userData.drift = releasedLanterns.length * 0.73;
+      lantern.userData.vy = 0.28;
+      const paper = new THREE.Mesh(
+        new THREE.SphereGeometry(0.66, 12, 10),
+        new THREE.MeshStandardMaterial({
+          color: 0xff4b32,
+          emissive: 0xff8a18,
+          emissiveIntensity: 1.35,
+          roughness: 0.45,
+          side: THREE.FrontSide,
+        }),
+      );
+      paper.scale.set(0.78, 1.18, 0.78);
+      lantern.add(paper);
+      for (const y of [0.52, 0.18, -0.18, -0.52]) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(y === 0.52 || y === -0.52 ? 0.38 : 0.51, 0.032, 5, 12),
+          M(0x65402d),
+        );
+        ring.position.y = y;
+        lantern.add(ring);
+      }
+      for (const y of [0.72, -0.72]) lantern.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(0.29, 0.29, 0.12, 10),
+        M(0x6a4028),
+      ).translateY(y));
+      const candle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.18, 0.18),
+        new THREE.MeshBasicMaterial({ color: 0xfff0a0 }),
+      );
+      candle.position.y = -0.18;
+      lantern.add(candle);
+      lantern.add(new THREE.PointLight(0xff7b24, 16, 8, 2));
+      root.add(lantern);
+      releasedLanterns.push(lantern);
+    };
+    W.updaters.push((elapsed) => {
+      for (let i = releasedLanterns.length - 1; i >= 0; i--) {
+        const lantern = releasedLanterns[i];
+        lantern.userData.age += 1 / 60;
+        lantern.userData.vy += 0.0028;
+        lantern.position.y += lantern.userData.vy * 0.055;
+        lantern.position.x += Math.sin(elapsed * 0.7 + lantern.userData.drift) * 0.006;
+        lantern.position.z += Math.cos(elapsed * 0.48 + lantern.userData.drift) * 0.004;
+        lantern.rotation.z = Math.sin(elapsed * 0.9 + lantern.userData.drift) * 0.08;
+        if (lantern.position.y > 62 || lantern.userData.age > 55) {
+          root.remove(lantern);
+          lantern.traverse(child => {
+            child.geometry?.dispose();
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+            else child.material?.dispose();
+          });
+          releasedLanterns.splice(i, 1);
+        }
+      }
+    });
+    W.interact.push({
+      x: lanternX, z: lanternZ + 2.2, r: 3.2,
+      label: 'Nhận & thả đèn trời',
+      action: 'lantern-wish',
     });
     W.rects.push({ minX: -9, maxX: 9, minZ: z0, maxZ: z1 + 1.2, kind: 'stage' });
     W.interact.push({

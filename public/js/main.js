@@ -343,12 +343,39 @@ const fieldPlayers = Array.from({ length: 12 }, (_, i) => {
 });
 const npcs = [...NPC_DEFS, ...fieldPlayers].map(d => {
   const char = createCharacter({ kind: d.kind, bag: d.bag ?? null, shirt: d.shirt, pants: d.pants, armband: d.armband, cap: d.cap, hairBun: d.hairBun, badge: d.teacher || d.staff ? false : undefined });
-  if (d.trashCollector) char.root.add(createTrashCart());
+  if (d.trashCollector) {
+    const trashCart = createTrashCart();
+    trashCart.position.z = 0.95;
+    char.root.add(trashCart);
+  }
   scene.add(char.root);
-  return { ...d, char, pos: new THREE.Vector3(d.x, 0, d.z), feetY: 0, facing: d.face ?? Math.random() * 6, target: null, wait: Math.random() * 3, stuck: 0, talkT: 0, lineIdx: 0, bellT: 0 };
+  return {
+    ...d,
+    char,
+    pos: new THREE.Vector3(d.x, 0, d.z),
+    feetY: 0,
+    facing: d.face ?? Math.random() * 6,
+    target: null,
+    trashRouteIndex: d.trashCollector ? 0 : -1,
+    wait: Math.random() * 3,
+    stuck: 0,
+    talkT: 0,
+    lineIdx: 0,
+    bellT: 0,
+  };
 });
 
 const onStage = v => v.x > -12 && v.x < 12 && v.z > -27 && v.z < -17.5;
+
+function trashRouteIsClear(x, z) {
+  const outsideBuilding = (world.colliders || []).every(c => {
+    if (c.top == null || c.top < 0.8) return true;
+    return x < c.minX - 1 || x > c.maxX + 1 || z < c.minZ - 1 || z > c.maxZ + 1;
+  });
+  return outsideBuilding &&
+    x > exteriorBounds.minX + 1 && x < exteriorBounds.maxX - 1 &&
+    z > exteriorBounds.minZ + 1 && z < exteriorBounds.maxZ - 1;
+}
 
 function pickTarget(n) {
   if (n.fieldPlayer) {
@@ -357,7 +384,26 @@ function pickTarget(n) {
     return new THREE.Vector3(x, 0, z);
   }
   if (n.trashCollector) {
-    return new THREE.Vector3(24 + Math.random() * 10, 0, 20 + Math.random() * 10);
+    const route = [
+      [48, 28],
+      [48, -35],
+      [18, -35],
+      [-18, -35],
+      [-48, -35],
+      [-48, 20],
+      [-24, 28],
+      [12, 28],
+    ];
+    n.trashRouteIndex = ((n.trashRouteIndex ?? 0) + 1) % route.length;
+    const [x, z] = route[n.trashRouteIndex];
+    for (let tries = 0; tries < 8; tries++) {
+      const rx = x + (Math.random() - 0.5) * 1.2;
+      const rz = z + (Math.random() - 0.5) * 1.2;
+      if (trashRouteIsClear(rx, rz)) return new THREE.Vector3(rx, 0, rz);
+    }
+    n.trashRouteIndex = (n.trashRouteIndex + 1) % route.length;
+    const [fallbackX, fallbackZ] = route[n.trashRouteIndex];
+    return new THREE.Vector3(fallbackX, 0, fallbackZ);
   }
   if (n.gatePatrol) {
     const { homeX0, homeX1, homeZ0, homeZ1 } = n;
@@ -400,7 +446,7 @@ const overviewCameraPosition = new THREE.Vector3();
 const overviewRotationSpeed = 2 * Math.PI / 75;
 const followCameraPosition = new THREE.Vector3();
 const blendedCameraTarget = new THREE.Vector3();
-let started = false, dialogOpen = false, menuOpen = false, mapOn = true, chatOpen = false, classOpen = false, qizzOpen = false, mathOpen = false, yardGameOpen = false;
+let started = false, dialogOpen = false, menuOpen = false, mapOn = true, chatOpen = false, classOpen = false, qizzOpen = false, mathOpen = false, yardGameOpen = false, lanternWishOpen = false;
 let landscapeRequired = false;
 let galleryOpen = false;
 let mathState = null, mathRenderedKey = '', mathPendingChoice = null, mathCountdownTimer = null, mathJaxPromise = null, mathJaxReady = false;
@@ -422,7 +468,7 @@ function updateOrientationNotice() {
 }
 
 function uiBlocksGame() {
-  return menuOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || dialogOpen || galleryOpen
+  return menuOpen || chatOpen || classOpen || qizzOpen || yardGameOpen || dialogOpen || lanternWishOpen || galleryOpen
     || caroPanelOpen || !!caroIncoming || !!caroGame
     || landscapeRequired || (!$('intro').hidden && !started);
 }
@@ -456,6 +502,11 @@ function toggleOverview() {
 
 let lastFireworksAt = -Infinity;
 addEventListener('keydown', e => {
+  if (lanternWishOpen && e.code === 'Escape') {
+    closeLanternWish();
+    e.preventDefault();
+    return;
+  }
   if (!started || menuOpen || landscapeRequired || formFocusBlocksKeys()) return;
   if (caroIncoming || caroPanelOpen || caroGame) {
     if (e.code === 'Escape') {
@@ -470,6 +521,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape') {
     if (qizzOpen) closeQizzGame();
     else if (yardGameOpen) closeYardGames();
+    else if (lanternWishOpen) closeLanternWish();
     else closeDialog();
     return;
   }
@@ -536,7 +588,7 @@ function resetJoy() {
 }
 
 function ptrOnUi(el) {
-  return el?.closest?.('#hud, #classPanel, #talkInvite, #talkPanel, #chatBar, #dialog, #galleryView, #intro, #minimap, #mobileBar, #touchBtns, #joy, button, input, textarea, select, a, label');
+  return el?.closest?.('#hud, #classPanel, #talkInvite, #talkPanel, #chatBar, #dialog, #lanternWish, #galleryView, #intro, #minimap, #mobileBar, #touchBtns, #joy, button, input, textarea, select, a, label');
 }
 
 const pinchPts = new Map();
@@ -723,6 +775,58 @@ function closeDialog() {
   dialogOpen = false;
 }
 $('dlgClose').addEventListener('click', closeDialog);
+
+let selectedLanternWish = '';
+
+function openLanternWish() {
+  lanternWishOpen = true;
+  selectedLanternWish = '';
+  $('lanternCustom').value = '';
+  $('lanternPresets').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  $('lanternWish').hidden = false;
+  setTimeout(() => $('lanternCustom').focus(), 50);
+}
+
+function closeLanternWish() {
+  lanternWishOpen = false;
+  $('lanternWish').hidden = true;
+  releaseGameFocus();
+}
+
+$('lanternWishClose').addEventListener('click', closeLanternWish);
+$('lanternDone').addEventListener('click', closeLanternWish);
+$('lanternPresets').addEventListener('click', e => {
+  const button = e.target.closest('button[data-wish]');
+  if (!button) return;
+  selectedLanternWish = button.dataset.wish;
+  $('lanternCustom').value = '';
+  $('lanternPresets').querySelectorAll('button').forEach(b => b.classList.toggle('active', b === button));
+});
+$('lanternApplyPreset').addEventListener('click', () => {
+  selectedLanternWish = 'Chúc thi đỗ Đại học và tương lai tươi sáng';
+  $('lanternCustom').value = '';
+  $('lanternPresets').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  toast('Đã chọn điều ước chúc thi đỗ và tương lai tươi sáng', 2200);
+});
+$('lanternCustom').addEventListener('input', () => {
+  if ($('lanternCustom').value.trim()) {
+    selectedLanternWish = '';
+    $('lanternPresets').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  }
+});
+$('lanternLaunch').addEventListener('click', () => {
+  const wish = $('lanternCustom').value.trim() || selectedLanternWish;
+  if (!wish) {
+    toast('Hãy chọn hoặc viết một điều ước trước khi thả đèn.', 2600);
+    return;
+  }
+  world.launchLantern(wish);
+  unlockAudio();
+  chimeSound();
+  mp.act('lantern');
+  closeLanternWish();
+  toast(`Đèn trời mang ước mơ: "${wish}" bay lên bầu trời`, 4200);
+});
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1925,6 +2029,7 @@ function greeting(n) {
 
 function use() {
   unlockAudio();
+  if (lanternWishOpen) { closeLanternWish(); return; }
   if (yardGameOpen) { closeYardGames(); return; }
   if (qizzOpen) { closeQizzGame(); return; }
   if (galleryOpen) { galleryOpen = false; closeGallery(); releaseGameFocus(); return; }
@@ -1960,6 +2065,19 @@ function use() {
     toggleBikeAtShed();
     return;
   }
+  if (current.action === 'campfire-sit') {
+    if (player.pose === 'sit') {
+      clearPlayerPose();
+    } else {
+      player.pos.set(current.x, 0, current.z + 1.6);
+      player.vel.set(0, 0, 0);
+      player.feetY = 0;
+      player.facing = Math.PI;
+      setPlayerPose('sit');
+      mp.act('campfire-sit');
+    }
+    return;
+  }
   if (current.action === 'drum') {
     drumSound();
     toast('Tùng! Tùng! Tùng! — Vào lớp thôi các bạn ơi!');
@@ -1981,6 +2099,10 @@ function use() {
   }
   if (current.action === 'qizz-game') {
     openQizzGame();
+    return;
+  }
+  if (current.action === 'lantern-wish') {
+    openLanternWish();
     return;
   }
   if (current.action === 'yard-game') {
@@ -2276,8 +2398,17 @@ function updateNPCs(dt) {
       } else {
         const v = n.trashCollector ? 0.65 : n.gatePatrol ? 1.05 : n.bellT > 0 ? 2.6 : 1.3;
         const ox = n.pos.x, oz = n.pos.z;
-        n.pos.addScaledVector(tmp.normalize(), v * dt);
-        col.resolve(n.pos, n.feetY, 0.3);
+        const move = tmp.normalize();
+        const nx = n.pos.x + move.x * v * dt;
+        const nz = n.pos.z + move.z * v * dt;
+        if (!n.trashCollector || trashRouteIsClear(nx, nz)) {
+          n.pos.addScaledVector(move, v * dt);
+          col.resolve(n.pos, n.feetY, n.trashCollector ? 1.0 : 0.3);
+        } else {
+          n.target = null;
+          n.wait = 1 + Math.random();
+          n.stuck = 0;
+        }
         const pd = Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z);
         if (pd < 0.65) { n.pos.x = ox; n.pos.z = oz; }
         speed = Math.hypot(n.pos.x - ox, n.pos.z - oz) / dt;

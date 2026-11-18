@@ -324,8 +324,8 @@ export function ceremonyBackdropTexture() {
   x.textAlign = 'center';
   x.textBaseline = 'middle';
   x.fillStyle = '#1d3f8f';
-  fitFont(x, 'SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI PHÒNG', 900, 40);
-  x.fillText('SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI PHÒNG', 960, 60);
+  fitFont(x, 'SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI DƯƠNG', 900, 40);
+  x.fillText('SỞ GIÁO DỤC VÀ ĐÀO TẠO HẢI DƯƠNG', 960, 60);
   fitFont(x, 'TRƯỜNG THPT NINH GIANG', 900, 46);
   x.fillText('TRƯỜNG THPT NINH GIANG', 960, 112);
   x.fillStyle = '#d62a1e';
@@ -335,8 +335,8 @@ export function ceremonyBackdropTexture() {
   x.fillStyle = '#1d3f8f';
   fitFont(x, 'NĂM HỌC MỚI', 800, 64);
   x.fillText('NĂM HỌC MỚI', 960, 335);
-  fitFont(x, 'Ninh Giang – Hải Phòng', 600, 34, 'italic');
-  x.fillText('Ninh Giang – Hải Phòng', 960, 400);
+  fitFont(x, 'Ninh Giang – Hải Dương', 600, 34, 'italic');
+  x.fillText('Ninh Giang – Hải Dương', 960, 400);
   return toTexture(c);
 }
 

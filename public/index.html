@@ -269,6 +269,32 @@
     </div>
   </div>
 
+  <div id="lanternWish" hidden role="dialog" aria-modal="true" aria-labelledby="lanternWishTitle">
+    <section class="lantern-card">
+      <button id="lanternWishClose" class="lantern-x" type="button" aria-label="Đóng">×</button>
+      <small>Ước nguyện tuổi học trò</small>
+      <h2 id="lanternWishTitle">Thả Đèn Trời Ước Nguyện</h2>
+      <p class="lantern-lead">Thắp sáng ước mơ của bạn và thả chiếc đèn trời bay cao giữa bầu trời Trường THPT Ninh Giang.</p>
+      <p class="lantern-label">Chọn nhanh điều ước nguyện:</p>
+      <div id="lanternPresets" class="lantern-presets">
+        <button type="button" data-wish="Tôi sẽ đỗ Đại học mơ ước">🎓 Đỗ Đại học mơ ước</button>
+        <button type="button" data-wish="Nhớ trường và nhớ bạn bè mãi mãi">❤️ Nhớ trường &amp; bạn bè</button>
+        <button type="button" data-wish="Gia đình bình an và hạnh phúc">🎁 Gia đình bình an</button>
+        <button type="button" data-wish="Thanh xuân rực rỡ">✨ Thanh xuân rực rỡ</button>
+        <button type="button" data-wish="Vững bước thành công">📣 Vững bước thành công</button>
+      </div>
+      <label class="lantern-custom">
+        <span>Hoặc viết điều ước của riêng bạn</span>
+        <textarea id="lanternCustom" maxlength="120" placeholder="Viết điều ước..."></textarea>
+      </label>
+      <div class="lantern-actions">
+        <button id="lanternApplyPreset" class="lantern-secondary" type="button">Chúc thi đỗ Đại học &amp; Tương lai tươi sáng</button>
+        <button id="lanternLaunch" class="lantern-primary" type="button">🔥 Thắp Lửa &amp; Thả Đèn</button>
+      </div>
+      <button id="lanternDone" class="lantern-done" type="button">Đóng <kbd>E / Esc</kbd></button>
+    </section>
+  </div>
+
   <div id="galleryView" hidden>
     <div class="card gal">
       <button id="galClose" class="cls-x" type="button" aria-label="Đóng">✕</button>
