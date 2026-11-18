@@ -807,6 +807,16 @@ export function buildWorld(scene) {
     light.target.position.set(s * 5, 0.5, 8);
     scene.add(light, light.target);
     W.lamps.push({ light, bulb: gateFloodBulb, maxIntensity: 160 });
+
+    const facadeY = 7.45;
+    box(gateFloodMetal, WORLD, 1.1, 0.08, 0.08, headX, facadeY + 0.34, z);
+    box(gateFloodHousing, WORLD, 0.78, 0.34, 0.5, headX, facadeY, z);
+    box(gateFloodBulb, WORLD, 0.65, 0.025, 0.38, headX, facadeY - 0.025, z);
+    const facadeLight = new THREE.SpotLight(0xfff1d8, 0, 55, Math.PI / 4.5, 0.4, 2);
+    facadeLight.position.set(headX, facadeY - 0.05, z);
+    facadeLight.target.position.set(s * 9.5, 2.4, gz + 0.45);
+    scene.add(facadeLight, facadeLight.target);
+    W.lamps.push({ light: facadeLight, bulb: gateFloodBulb, maxIntensity: 850 });
     W.colliders.push({ minX: x - 0.24, maxX: x + 0.24, minZ: z - 0.24, maxZ: z + 0.24, top: 8.8 });
   }
   // Đèn rọi biển tên từ phía đường để bảng sáng rõ vào ban đêm.
@@ -816,11 +826,11 @@ export function buildWorld(scene) {
     const x = s * 3.2;
     box(signLightMetal, WORLD, 0.5, 0.14, 0.32, x, 5.8, 37.9);
     box(signLightBulb, WORLD, 0.38, 0.025, 0.22, x, 5.78, 37.72);
-    const light = new THREE.SpotLight(0xffe6bc, 0, 12, Math.PI / 5, 0.5, 2);
+    const light = new THREE.SpotLight(0xffe6bc, 0, 12, Math.PI / 3, 0.45, 2);
     light.position.set(x, 5.75, 37.72);
-    light.target.position.set(s * 2.2, 3.7, 36.42);
+    light.target.position.set(x, 4.52, 36.42);
     scene.add(light, light.target);
-    W.lamps.push({ light, bulb: signLightBulb, maxIntensity: 95 });
+    W.lamps.push({ light, bulb: signLightBulb, maxIntensity: 150 });
   }
   // phòng bảo vệ nhỏ ngay phía trong cổng, bên trái lối vào (chỗ thầy Dương đứng trực)
   {
@@ -1052,6 +1062,16 @@ export function buildWorld(scene) {
       light.target.position.set(s * 4.5, 1.2, -22.2);
       scene.add(light, light.target);
       W.lamps.push({ light, bulb: floodBulb, maxIntensity: 130 });
+
+      const yardY = 9.25;
+      box(floodMetal, WORLD, 1.1, 0.08, 0.08, headX, yardY + 0.34, z);
+      box(floodHousing, WORLD, 0.78, 0.34, 0.5, headX, yardY, z);
+      box(floodBulb, WORLD, 0.65, 0.025, 0.38, headX, yardY - 0.025, z);
+      const yardLight = new THREE.SpotLight(0xfff0d8, 0, 58, Math.PI / 2, 0.5, 2);
+      yardLight.position.set(headX, yardY - 0.05, z);
+      yardLight.target.position.set(s * 3, 0.1, -8);
+      scene.add(yardLight, yardLight.target);
+      W.lamps.push({ light: yardLight, bulb: floodBulb, maxIntensity: 230 });
       W.colliders.push({ minX: x - 0.24, maxX: x + 0.24, minZ: z - 0.24, maxZ: z + 0.24, top: 10.5 });
     }
     const chairRed = M(0xc62828, { roughness: 0.72 });

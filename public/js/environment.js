@@ -112,9 +112,9 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
   const coolSun = new THREE.Color(0xfff0d8);
   const warmSun = new THREE.Color(0xff9a5a);
   const hemisphereDay = new THREE.Color(0xdfefff);
-  const hemisphereNight = new THREE.Color(0x34445e);
+  const hemisphereNight = new THREE.Color(0x485a76);
   const groundDay = new THREE.Color(0x7a6a4a);
-  const groundNight = new THREE.Color(0x303a50);
+  const groundNight = new THREE.Color(0x424d64);
   const lampMaterials = new Set(lamps.map(lamp => lamp.bulb));
   const timeFormatter = new Intl.DateTimeFormat('vi-VN', {
     timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit',
@@ -241,7 +241,7 @@ export function createEnvironment({ scene, camera, sky, clouds, cloudMaterial, h
 
     hemisphere.color.copy(hemisphereNight).lerp(hemisphereDay, daylight);
     hemisphere.groundColor.copy(groundNight).lerp(groundDay, daylight);
-    hemisphere.intensity = 0.72 + 0.45 * daylight * (1 - cloud * 0.2);
+    hemisphere.intensity = 1.1 + 0.07 * daylight * (1 - cloud * 0.2);
     sun.color.copy(warmSun).lerp(coolSun, 1 - sunriseWarmth);
     sun.intensity = 2.7 * daylight * dimming;
     sun.target.position.set(targetX, 0, targetZ);
