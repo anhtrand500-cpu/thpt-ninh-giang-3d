@@ -330,11 +330,11 @@ export function ceremonyBackdropTexture() {
   x.fillText('TRƯỜNG THPT NINH GIANG', 960, 112);
   x.fillStyle = '#d62a1e';
   x.font = 'bold 128px Georgia, "Times New Roman", serif';
-  fitFont(x, 'LỄ KHAI GIẢNG', 1050, 130);
-  x.fillText('LỄ KHAI GIẢNG', 960, 235);
+  fitFont(x, 'CHÀO MỪNG NGÀY NHÀ GIÁO VIỆT NAM', 1050, 130);
+  x.fillText('CHÀO MỪNG NGÀY NHÀ GIÁO VIỆT NAM', 960, 235);
   x.fillStyle = '#1d3f8f';
-  fitFont(x, 'NĂM HỌC MỚI', 800, 64);
-  x.fillText('NĂM HỌC MỚI', 960, 335);
+  fitFont(x, '20 - 11', 800, 64);
+  x.fillText('20 - 11', 960, 335);
   fitFont(x, 'Ninh Giang – Hải Dương', 600, 34, 'italic');
   x.fillText('Ninh Giang – Hải Dương', 960, 400);
   return toTexture(c);

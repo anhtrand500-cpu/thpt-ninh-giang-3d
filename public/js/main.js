@@ -297,6 +297,18 @@ function createTrashCart() {
 }
 
 const NPC_DEFS = [
+  // 10 bạn múa xếp hàng trên sân khấu, mặc váy đỏ và áo trắng.
+  { name: 'Nhảy múa 1', kind: 'girl', shirt: 0xfffaf0, skirt: 0xc62828, x: -6.8, z: -20.8, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 2', kind: 'girl', shirt: 0xfffaf0, skirt: 0xd32f2f, x: -3.4, z: -20.8, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 3', kind: 'girl', shirt: 0xfffaf0, skirt: 0xc62828, x: 0, z: -20.8, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 4', kind: 'girl', shirt: 0xfffaf0, skirt: 0xd32f2f, x: 3.4, z: -20.8, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 5', kind: 'girl', shirt: 0xfffaf0, skirt: 0xc62828, x: 6.8, z: -20.8, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  // Hàng sau so le với hàng trước để hai hàng xen kẽ nhau.
+  { name: 'Nhảy múa 6', kind: 'girl', shirt: 0xfffaf0, skirt: 0xd32f2f, x: -5.1, z: -23.0, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 7', kind: 'girl', shirt: 0xfffaf0, skirt: 0xc62828, x: -1.7, z: -23.0, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 8', kind: 'girl', shirt: 0xfffaf0, skirt: 0xd32f2f, x: 1.7, z: -23.0, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 9', kind: 'girl', shirt: 0xfffaf0, skirt: 0xc62828, x: 5.1, z: -23.0, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
+  { name: 'Nhảy múa 10', kind: 'girl', shirt: 0xfffaf0, skirt: 0xd32f2f, x: 8.5, z: -23.0, static: true, face: 0, stageDancer: true, feetY: 1.1, lines: ['Tiết mục múa chào mừng đang bắt đầu!'] },
   { name: 'Lan', kind: 'aodai', x: -8, z: 4, lines: ['Hôm nay thứ Hai nên tụi mình mặc áo dài đấy!', 'Cậu đã tìm thấy trang lưu bút nào chưa? Nghe nói có một trang ở chỗ nhà xe.'] },
   { name: 'Minh', kind: 'boy', x: 2, z: 21, bag: 0x333333, lines: ['Chiều nay lớp mình đá bóng với 12A2, cậu ra cổ vũ nhé!', 'Trống trên sân khấu là để vào lớp, còn kẻng treo ở gốc cây cổ thụ bên trái sân trong là báo ra chơi đấy.'] },
   { name: 'Hoa', kind: 'aodai', x: -20, z: 19, static: true, face: Math.PI / 2, lines: ['Mùa phượng nở là mùa thi… nhanh thật.', 'Tớ đang ôn thi học sinh giỏi Văn, run quá!'] },
@@ -354,7 +366,7 @@ const fieldPlayers = Array.from({ length: 12 }, (_, i) => {
   };
 });
 const npcs = [...NPC_DEFS, ...fieldPlayers].map(d => {
-  const char = createCharacter({ kind: d.kind, bag: d.bag ?? null, shirt: d.shirt, pants: d.pants, armband: d.armband, cap: d.cap, hairBun: d.hairBun, badge: d.teacher || d.staff ? false : undefined });
+  const char = createCharacter({ kind: d.kind, bag: d.bag ?? null, shirt: d.shirt, pants: d.pants, skirt: d.skirt, armband: d.armband, cap: d.cap, hairBun: d.hairBun, badge: d.teacher || d.staff ? false : undefined });
   if (d.trashCollector) {
     const trashCart = createTrashCart();
     trashCart.position.z = 0.95;
@@ -365,7 +377,7 @@ const npcs = [...NPC_DEFS, ...fieldPlayers].map(d => {
     ...d,
     char,
     pos: new THREE.Vector3(d.x, 0, d.z),
-    feetY: 0,
+    feetY: d.feetY ?? 0,
     facing: d.face ?? Math.random() * 6,
     target: null,
     trashRouteIndex: d.trashCollector ? 0 : -1,
@@ -2470,7 +2482,7 @@ function updateNPCs(dt) {
     n.feetY = col.groundAt(n.pos.x, n.pos.z, n.feetY);
     n.char.root.position.set(n.pos.x, n.feetY, n.pos.z);
     n.char.root.rotation.y = n.facing;
-    const nPose = n.clapT > 0 ? 'clap' : null;
+    const nPose = n.clapT > 0 ? 'clap' : n.stageDancer ? 'dance' : null;
     n.char.update(dt, nPose ? 1.1 : speed, false, 0, nPose);
     if (n.bubble && performance.now() > n.bubbleUntil) { n.char.root.remove(n.bubble); n.bubble = null; }
   }

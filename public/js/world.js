@@ -775,6 +775,80 @@ export function buildWorld(scene) {
   gateFace.position.set(0, 4.1, gz + 0.42);
   gateFace.receiveShadow = true;
   root.add(gateFace);
+
+  // Cổng chào chào mừng Ngày Nhà giáo Việt Nam, đặt phía trước cổng trường.
+  {
+    const welcomeZ = 39.7;
+    const red = M(0xe54c3f, { roughness: 0.58 });
+    const gold = M(0xffd64a, { roughness: 0.55 });
+    const white = M(0xfff8df, { roughness: 0.7 });
+    const darkGreen = M(0x276b31, { flatShading: true });
+    const green = M(0x4f9a3a, { flatShading: true });
+
+    // Hai trụ và khung cong giống cổng hơi bơm hơi ngoài sân trường.
+    box(red, WORLD, 1.15, 4.2, 1.15, -9.1, 0, welcomeZ);
+    box(red, WORLD, 1.15, 4.2, 1.15, 9.1, 0, welcomeZ);
+    W.colliders.push(
+      { minX: -9.75, maxX: -8.45, minZ: welcomeZ - 0.65, maxZ: welcomeZ + 0.65, top: 4.2 },
+      { minX: 8.45, maxX: 9.75, minZ: welcomeZ - 0.65, maxZ: welcomeZ + 0.65, top: 4.2 },
+    );
+
+    const archPoints = [
+      new THREE.Vector3(-9.1, 3.7, welcomeZ),
+      new THREE.Vector3(-8.6, 5.7, welcomeZ),
+      new THREE.Vector3(-6.2, 7.45, welcomeZ),
+      new THREE.Vector3(-2.8, 8.15, welcomeZ),
+      new THREE.Vector3(0, 8.35, welcomeZ),
+      new THREE.Vector3(2.8, 8.15, welcomeZ),
+      new THREE.Vector3(6.2, 7.45, welcomeZ),
+      new THREE.Vector3(8.6, 5.7, welcomeZ),
+      new THREE.Vector3(9.1, 3.7, welcomeZ),
+    ];
+    const archCurve = new THREE.CatmullRomCurve3(archPoints, false, 'centripetal');
+    const arch = new THREE.Mesh(new THREE.TubeGeometry(archCurve, 32, 0.58, 8, false), red);
+    arch.castShadow = true;
+    arch.receiveShadow = true;
+    root.add(arch);
+
+    sign(
+      T.signTexture('CHÀO MỪNG NGÀY NHÀ GIÁO VIỆT NAM 20/11/2026', {
+        w: 2200,
+        h: 280,
+        bg: '#e54c3f',
+        fg: '#fff8df',
+        border: '#ffd64a',
+        size: 118,
+      }),
+      15.8,
+      2.0,
+      0,
+      6.15,
+      welcomeZ + 0.61,
+      0,
+      true,
+    );
+
+    // Trang trí hoa lá và cành xanh hai bên chân cổng.
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 5; i++) {
+        const x = s * (7.5 + i * 0.48);
+        const z = welcomeZ + 0.15 + (i % 2) * 0.42;
+        cyl(darkGreen, WORLD, 0.055, 1.15 + i * 0.08, x, 0, z, 0.72);
+        blob(green, WORLD, x - s * 0.18, 0.75 + i * 0.12, z, 0.55, 0.22, 0.26);
+        blob(i % 2 ? mats.flower : mats.flower2, WORLD, x + s * 0.12, 1.18 + i * 0.09, z, 0.35, 0.28, 0.24);
+      }
+      blob(gold, WORLD, s * 9.1, 4.1, welcomeZ + 0.58, 0.38, 0.38, 0.08);
+      blob(white, WORLD, s * 8.45, 3.25, welcomeZ + 0.58, 0.42, 0.42, 0.10);
+    }
+
+    // Lá treo rải đều dọc khung cong để tạo vẻ lễ hội.
+    for (let i = 0; i < 17; i++) {
+      const t = i / 16;
+      const p = archCurve.getPoint(t);
+      blob(i % 3 === 0 ? mats.flower2 : i % 2 ? mats.flower : green, WORLD, p.x, p.y - 0.55, p.z + 0.28, 0.22, 0.18, 0.12);
+    }
+  }
+
   W.colliders.push(
     { minX: -9.3, maxX: -5.25, minZ: gz - 0.2, maxZ: gz + 0.5, top: 3.1 },
     { minX: 5.25, maxX: 9.3, minZ: gz - 0.2, maxZ: gz + 0.5, top: 3.1 },

@@ -200,7 +200,7 @@ export function installYardPlay(scene, W, root) {
 
   const albums = [
     { x: 0, z: 36.8, r: 3.2, img: 'reference/2022-cong-nhin-tu-trong.jpg', title: 'Cổng nhìn từ trong', text: 'Ảnh thực tế khu cổng trường.' },
-    { x: 0, z: -17.6, r: 4, img: 'reference/2022-san-khau-nha-chinh.jpg', title: 'Sân khấu & nhà chính', text: 'Lễ khai giảng — sân khấu trước dãy nhà học.' },
+    { x: 0, z: -17.6, r: 4, img: 'reference/2022-san-khau-nha-chinh.jpg', title: 'Sân khấu & nhà chính', text: 'Lễ chào mừng ngày Nhà Giáo Việt Nam 20/11 — sân khấu trước dãy nhà học.' },
     { x: -24, z: 6, r: 3, img: 'reference/2022-cay-co-thu.jpg', title: 'Cây cổ thụ sân trong', text: 'Gốc cây treo kẻng ra chơi.' },
     { x: 20, z: -28, r: 3, img: 'reference/nha-hoc-chinh.jpg', title: 'Nhà học chính', text: 'Mặt tiền dãy lớp học ba tầng.' },
     { x: 0, z: 51, r: 5, img: 'reference/gg-street-2026-san-bong.png', title: 'Sân bóng đối diện', text: 'Sân cỏ nhân tạo bên kia đường Nguyễn Bỉnh Khiêm.' },

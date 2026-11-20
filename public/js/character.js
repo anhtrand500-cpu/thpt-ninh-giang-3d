@@ -18,6 +18,7 @@ function part(geo, color, x, y, z, parent) {
 const G = {
   leg: new THREE.BoxGeometry(0.17, 0.8, 0.19).translate(0, -0.4, 0),
   wideLeg: new THREE.BoxGeometry(0.2, 0.82, 0.22).translate(0, -0.41, 0),
+  skirt: new THREE.CylinderGeometry(0.27, 0.48, 0.62, 12).translate(0, -0.31, 0),
   shoe: new THREE.BoxGeometry(0.18, 0.1, 0.28).translate(0, -0.83, 0.04),
   torso: new THREE.BoxGeometry(0.46, 0.62, 0.26),
   slimTorso: new THREE.BoxGeometry(0.4, 0.62, 0.24),
@@ -70,6 +71,10 @@ export function createCharacter(o = {}) {
     part(G.shoe, look.shoes, 0, 0, 0, g);
     return g;
   });
+
+  if (look.skirt) {
+    part(G.skirt, look.skirt, 0, hipY + 0.02, 0, body);
+  }
 
   part(aodai ? G.slimTorso : G.torso, look.shirt, 0, hipY + 0.32, 0, body);
   const splitJk = !aodai && look.jacket === 'split';
